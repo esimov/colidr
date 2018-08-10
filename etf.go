@@ -6,7 +6,6 @@ import (
 	"gocv.io/x/gocv"
 	"math"
 	"sync"
-	"github.com/go-opencv/go-opencv/opencv"
 )
 
 type Etf struct {
@@ -87,15 +86,19 @@ func (etf *Etf) resizeMat(size gocv.Mat) {
 	gocv.Resize(etf.gradientMag, &etf.gradientMag, image.Point{size.Rows(), size.Cols()}, 0, 0, gocv.InterpolationDefault)
 }
 
-func (etf *Etf) rotateFlow(src, dst gocv.Mat, theta float32) {
+func (etf *Etf) rotateFlow(src, dst gocv.Mat, theta float64) {
 	theta = theta / 180.0 * math.Pi
 
 	for x := 0; x < src.Rows(); x++ {
 		for y := 0; y < src.Cols(); y++ {
-			val := src.GetVecfAt(x, y)
-			rx := val[0] * math.Cos(theta) - val[1] * math.Sin(theta)
-			ry := val[0] * math.Sin(theta) + val[1] * math.Cos(theta)
-			dst.SetFloatAt(x, y, gocv.Vecf{rx, ry})
+			srcVec := src.GetVecfAt(x, y)
+			// Obtain the source vector value and rotate it.
+			rx := srcVec[0] * float32(math.Cos(theta)) - srcVec[1] * float32(math.Sin(theta))
+			ry := srcVec[0] * float32(math.Sin(theta)) + srcVec[1] * float32(math.Cos(theta))
+
+			// Apply the rotation values to the destination matrix.
+			dstVec := dst.GetVecfAt(x, y)
+			dstVec[0], dstVec[1] = rx, ry
 		}
 	}
 }
