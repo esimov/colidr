@@ -85,6 +85,25 @@ func (etf *Etf) intializeEtf(file string, size gocv.Mat) error {
 	return nil
 }
 
+func (etf *Etf) NewEtf(kernel int) {
+	var wg sync.WaitGroup
+
+	for x := 0; x < etf.flowField.Rows(); x++ {
+		for y := 0; y < etf.flowField.Cols(); y++ {
+			// Spawn computation into separate goroutines
+			go func(x, y int) {
+				wg.Add(1)
+				defer wg.Done()
+
+				etf.computeNewVector(x, y, kernel)
+			}(x, y)
+		}
+	}
+	wg.Wait()
+
+	etf.flowField = etf.newEtf
+}
+
 func (etf *Etf) computeNewVector(x, y int, kernel int) {
 	var tNew float32
 	tCurX := etf.flowField.GetVecfAt(x, y)
@@ -97,10 +116,12 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 			}
 			tCurY := etf.flowField.GetVecfAt(r, c)
 			phi := etf.computePhi(tCurX, tCurY)
+
 			// Compute the euclidean distance of the current point and the neighboring point.
 			weightSpatial := etf.computeWeightSpatial(Point{x, y}, Point{r, c}, kernel)
 			weightMagnitude := etf.computeWeightMagnitude(etf.gradientMag.GetFloatAt(x, y), etf.gradientMag.GetFloatAt(r, c))
 			weightDirection := etf.computeWeightDirection(tCurX, tCurY)
+
 			tNew += float32(phi) * tCurY[0] * float32(weightSpatial) * weightMagnitude * weightDirection
 		}
 	}
