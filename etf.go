@@ -2,10 +2,10 @@ package main
 
 import (
 	"image"
-
-	"gocv.io/x/gocv"
 	"math"
 	"sync"
+
+	"gocv.io/x/gocv"
 )
 
 type Etf struct {
@@ -21,6 +21,11 @@ type Point struct {
 
 func NewETF() *Etf {
 	return &Etf{}
+}
+
+func main() {
+	etf := NewETF()
+	etf.Init(300, 300)
 }
 
 func (etf *Etf) Init(row, col int) {
@@ -108,8 +113,8 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 	var tNew float32
 	tCurX := etf.flowField.GetVecfAt(x, y)
 
-	for r := x - kernel; r <= x + kernel; r++ {
-		for c := y - kernel; c <= y + kernel; c++ {
+	for r := x - kernel; r <= x+kernel; r++ {
+		for c := y - kernel; c <= y+kernel; c++ {
 			// Checking for boundaries.
 			if r < 0 || r >= etf.newEtf.Rows() || c < 0 || c >= etf.newEtf.Cols() {
 				continue
@@ -144,7 +149,7 @@ func (etf *Etf) computeWeightSpatial(p1, p2 Point, r int) int {
 	dx := p2.x - p1.x
 	dy := p2.y - p1.y
 
-	dist := int(math.Sqrt(float64(dx * dx) + float64(dy * dy)))
+	dist := int(math.Sqrt(float64(dx*dx) + float64(dy*dy)))
 	if dist < r {
 		return 1
 	}
@@ -152,7 +157,7 @@ func (etf *Etf) computeWeightSpatial(p1, p2 Point, r int) int {
 }
 
 func (etf *Etf) computeWeightMagnitude(gradMagX, gradMagY float32) float32 {
-	return (1.0 + float32(math.Tanh(float64(gradMagX - gradMagY)))) / 2.0
+	return (1.0 + float32(math.Tanh(float64(gradMagX-gradMagY)))) / 2.0
 }
 
 func (etf *Etf) computeWeightDirection(x, y gocv.Vecf) float32 {
@@ -176,8 +181,8 @@ func (etf *Etf) rotateFlow(src, dst gocv.Mat, theta float64) {
 		for y := 0; y < src.Cols(); y++ {
 			srcVec := src.GetVecfAt(x, y)
 			// Obtain the source vector value and rotate it.
-			rx := srcVec[0] * float32(math.Cos(theta)) - srcVec[1] * float32(math.Sin(theta))
-			ry := srcVec[0] * float32(math.Sin(theta)) + srcVec[1] * float32(math.Cos(theta))
+			rx := srcVec[0]*float32(math.Cos(theta)) - srcVec[1]*float32(math.Sin(theta))
+			ry := srcVec[0]*float32(math.Sin(theta)) + srcVec[1]*float32(math.Cos(theta))
 
 			// Apply the rotation values to the destination matrix.
 			dstVec := dst.GetVecfAt(x, y)
@@ -186,13 +191,8 @@ func (etf *Etf) rotateFlow(src, dst gocv.Mat, theta float64) {
 	}
 }
 
-func main() {
-	etf := NewETF()
-	etf.Init(300, 300)
-}
-
 func normalize(a, b float32) float32 {
-	norm := 1 - float32(math.Abs(float64(a)-float64(b)) / math.Max(float64(a), float64(b)))
+	norm := 1 - float32(math.Abs(float64(a)-float64(b))/math.Max(float64(a), float64(b)))
 	if norm < 0.0 {
 		return 0.0
 	}
