@@ -48,10 +48,8 @@ func (etf *Etf) intializeEtf(file string, size gocv.Mat) error {
 		return err
 	}
 
-	// ToDo apply different x, y derivatives
-	// ToDo convert to grayscale
-	sobelGradX := Sobel(newImg.(*image.NRGBA), 10)
-	sobelGradY := Sobel(newImg.(*image.NRGBA), 10)
+	sobelGradX := Sobel(newImg.(*image.NRGBA), 5)
+	sobelGradY := Sobel(newImg.(*image.NRGBA), 5)
 
 	gradX, err := gocv.ImageToMatRGBA(sobelGradX)
 	if err != nil {

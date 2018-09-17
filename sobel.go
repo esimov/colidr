@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"math"
 )
 
@@ -85,7 +86,7 @@ func Sobel(img *image.NRGBA, threshold float64) *image.NRGBA {
 		dst.Pix[idx+2] = uint8(edges[idx+2])
 		dst.Pix[idx+3] = 255
 	}
-	return dst
+	return toGrayScale(dst)
 }
 
 // Group pixels into 2D array, each one containing the pixel RGB value.
@@ -102,4 +103,20 @@ func getImageData(img *image.NRGBA) [][]uint8 {
 		}
 	}
 	return pixels
+}
+
+
+// toGrayScale converts the image to grayscale mode.
+func toGrayScale(src *image.NRGBA) *image.NRGBA {
+	dx, dy := src.Bounds().Max.X, src.Bounds().Max.Y
+	dst := image.NewNRGBA(src.Bounds())
+	for x := 0; x < dx; x++ {
+		for y := 0; y < dy; y++ {
+			r, g, b, _ := src.At(x, y).RGBA()
+			lum := float32(r)*0.299 + float32(g)*0.587 + float32(b)*0.114
+			pixel := color.Gray{Y: uint8(lum / 256)}
+			dst.Set(x, y, pixel)
+		}
+	}
+	return dst
 }
