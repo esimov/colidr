@@ -59,6 +59,7 @@ func (etf *Etf) intializeEtf(file string, size gocv.Mat) error {
 	if err != nil {
 		return err
 	}
+	etf.gradientMag, err = gocv.ImageToMatRGB(sobelGradX)
 
 	// Compute gradient
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
@@ -132,11 +133,8 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 }
 
 func (etf *Etf) computePhi(x, y gocv.Vecf) int {
-	var s float32
-	for i := 0; i < etf.flowField.Channels(); i++ {
-		s += x[i] * y[i]
-	}
-	if s > 0 {
+	wd := etf.computeWeightDirection(x, y)
+	if wd > 0 {
 		return 1
 	}
 	return -1
@@ -160,6 +158,7 @@ func (etf *Etf) computeWeightMagnitude(gradMagX, gradMagY float32) float32 {
 
 func (etf *Etf) computeWeightDirection(x, y gocv.Vecf) float32 {
 	var s float32
+	// Compute the dot product.
 	for i := 0; i < etf.flowField.Channels(); i++ {
 		s += x[i] * y[i]
 	}
