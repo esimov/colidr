@@ -1,4 +1,4 @@
-# colid
+# colidr
 Coherent Line Drawing. 
 
-Documentation is comming once the algorithm is implemented.
+Nothing functional and interesting yet.
