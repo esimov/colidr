@@ -105,7 +105,6 @@ func getImageData(img *image.NRGBA) [][]uint8 {
 	return pixels
 }
 
-
 // toGrayScale converts the image to grayscale mode.
 func toGrayScale(src *image.NRGBA) *image.NRGBA {
 	dx, dy := src.Bounds().Max.X, src.Bounds().Max.Y

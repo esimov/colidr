@@ -1,19 +1,19 @@
 package main
 
 import (
-	"math"
-	"gocv.io/x/gocv"
 	"errors"
 	"fmt"
+	"gocv.io/x/gocv"
+	"math"
 	"sync"
 )
 
 type Cld struct {
 	originalImg gocv.Mat
-	result gocv.Mat
-	dog gocv.Mat
-	fDog gocv.Mat
-	etf *Etf
+	result      gocv.Mat
+	dog         gocv.Mat
+	fDog        gocv.Mat
+	etf         *Etf
 }
 
 type position struct {
@@ -23,8 +23,8 @@ type position struct {
 const (
 	SigmaM float64 = 3.0
 	SigmaC float64 = 1.0
-	Rho float64 = 0.997
-	Tau float64 = 0.8
+	Rho    float64 = 0.997
+	Tau    float64 = 0.8
 )
 
 func NewCLD() *Cld {
@@ -59,9 +59,9 @@ func (c *Cld) GenerateCld() {
 
 func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 	var (
-		gauAcc float64
+		gauAcc       float64
 		gauWeightAcc float64
-		gau []float64
+		gau          []float64
 	)
 
 	gausVec := makeGaussianVector(sigma, gau)
@@ -87,8 +87,8 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 						break
 					}
 
-					if pos.x > float64(imgWidth - 1) || pos.x < 0.0 ||
-						pos.y > float64(imgHeight - 1) || pos.y < 0.0 {
+					if pos.x > float64(imgWidth-1) || pos.x < 0.0 ||
+						pos.y > float64(imgHeight-1) || pos.y < 0.0 {
 						break
 					}
 
@@ -100,7 +100,7 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 					pos.x += direction.x
 					pos.y += direction.y
 
-					if int(pos.x) < 0 || int(pos.x) > imgWidth - 1 || int(pos.y) < 0 || int(pos.y) > imgHeight - 1 {
+					if int(pos.x) < 0 || int(pos.x) > imgWidth-1 || int(pos.y) < 0 || int(pos.y) > imgHeight-1 {
 						break
 					}
 				}
@@ -116,8 +116,8 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 						break
 					}
 
-					if pos.x > float64(imgWidth - 1) || pos.x < 0.0 ||
-						pos.y > float64(imgHeight - 1) || pos.y < 0.0 {
+					if pos.x > float64(imgWidth-1) || pos.x < 0.0 ||
+						pos.y > float64(imgHeight-1) || pos.y < 0.0 {
 						break
 					}
 
@@ -129,7 +129,7 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 					pos.x += direction.x
 					pos.y += direction.y
 
-					if int(pos.x) < 0 || int(pos.x) > imgWidth - 1 || int(pos.y) < 0 || int(pos.y) > imgHeight - 1 {
+					if int(pos.x) < 0 || int(pos.x) > imgWidth-1 || int(pos.y) < 0 || int(pos.y) > imgHeight-1 {
 						break
 					}
 				}
@@ -139,10 +139,10 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 
 			newVal := func(gauAcc, gauWeightAcc float64) float64 {
 				var res float64
-				if gauAcc / gauWeightAcc > 0 {
+				if gauAcc/gauWeightAcc > 0 {
 					res = 1.0
 				} else {
-					res = 1.0 + math.Tanh(gauAcc / gauWeightAcc)
+					res = 1.0 + math.Tanh(gauAcc/gauWeightAcc)
 				}
 				return res
 			}
@@ -156,7 +156,7 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 }
 
 func gauss(x, mean, sigma float64) float64 {
-	return math.Exp((-(x - mean) * (x - mean)) / (2 * sigma * sigma)) / math.Sqrt(math.Pi * 2.0 * sigma * sigma)
+	return math.Exp((-(x-mean)*(x-mean))/(2*sigma*sigma)) / math.Sqrt(math.Pi*2.0*sigma*sigma)
 }
 
 func makeGaussianVector(sigma float64, gau []float64) []float64 {
@@ -165,7 +165,7 @@ func makeGaussianVector(sigma float64, gau []float64) []float64 {
 
 	for {
 		i++
-		if (gauss(float64(i), 0.0, sigma) < threshold) {
+		if gauss(float64(i), 0.0, sigma) < threshold {
 			break
 		}
 	}
@@ -178,6 +178,6 @@ func makeGaussianVector(sigma float64, gau []float64) []float64 {
 	for j := 1; j < len(gau); j++ {
 		gau[j] = gauss(float64(j), 0.0, sigma)
 	}
-	
+
 	return gau
 }
