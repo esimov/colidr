@@ -47,7 +47,7 @@ func (c *Cld) ReadSource(file string) error {
 	c.dog = gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV8UC1)
 	c.fDog = gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV8UC1)
 
-	if err := c.etf.intializeEtf(file, c.originalImg); err != nil {
+	if err := c.etf.InitEtf(file, c.originalImg); err != nil {
 		return errors.New(fmt.Sprintf("Unable to initialize edge tangent flow matrix: %s\n", err))
 	}
 	return nil

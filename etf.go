@@ -36,8 +36,8 @@ func (etf *Etf) Init(row, col int) {
 	etf.gradientMag = gocv.NewMatWithSize(size.Rows(), size.Cols(), gocv.MatTypeCV32F)
 }
 
-func (etf *Etf) intializeEtf(file string, size gocv.Mat) error {
-	etf.resizeMat(size)
+func (etf *Etf) InitEtf(file string, mat gocv.Mat) error {
+	etf.resizeMat(mat)
 
 	src := gocv.IMRead(file, gocv.IMReadUnchanged)
 	dst := gocv.NewMat()
@@ -65,7 +65,7 @@ func (etf *Etf) intializeEtf(file string, size gocv.Mat) error {
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
 	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMixMax)
 
-	flowField := gocv.NewMat()
+	flowField := gocv.NewMatWithSize(mat.Rows(), mat.Cols(), gocv.MatTypeCV32F)
 
 	var wg sync.WaitGroup
 
@@ -83,13 +83,13 @@ func (etf *Etf) intializeEtf(file string, size gocv.Mat) error {
 			}(x, y)
 		}
 	}
-	etf.rotateFlow(flowField, flowField, 90)
+	flowField = etf.rotateFlow(flowField, 90)
 	wg.Wait()
 
 	return nil
 }
 
-func (etf *Etf) NewEtf(kernel int) {
+func (etf *Etf) RefineEtf(kernel int) {
 	var wg sync.WaitGroup
 
 	for x := 0; x < etf.flowField.Rows(); x++ {
@@ -171,21 +171,23 @@ func (etf *Etf) resizeMat(size gocv.Mat) {
 	gocv.Resize(etf.gradientMag, &etf.gradientMag, image.Point{size.Rows(), size.Cols()}, 0, 0, gocv.InterpolationDefault)
 }
 
-func (etf *Etf) rotateFlow(src, dst gocv.Mat, theta float64) {
+func (etf *Etf) rotateFlow(src gocv.Mat, theta float64) gocv.Mat {
+	var dst gocv.Mat
+
 	theta = theta / 180.0 * math.Pi
 
 	for x := 0; x < src.Rows(); x++ {
 		for y := 0; y < src.Cols(); y++ {
 			srcVec := src.GetVecfAt(x, y)
 			// Obtain the source vector value and rotate it.
-			rx := srcVec[0]*float32(math.Cos(theta)) - srcVec[1]*float32(math.Sin(theta))
-			ry := srcVec[0]*float32(math.Sin(theta)) + srcVec[1]*float32(math.Cos(theta))
+			rx := float64(srcVec[0])*math.Cos(theta) - float64(srcVec[1])*math.Sin(theta)
+			ry := float64(srcVec[0])*math.Sin(theta) + float64(srcVec[1])*math.Cos(theta)
 
 			// Apply the rotation values to the destination matrix.
-			dstVec := dst.GetVecfAt(x, y)
-			dstVec[0], dstVec[1] = rx, ry
+			dst = gocv.NewMatFromScalar(gocv.Scalar{Val1: rx, Val2: ry, Val3: 0, Val4: 0}, gocv.MatTypeCV32F)
 		}
 	}
+	return dst
 }
 
 func normalize(a, b float32) float32 {
