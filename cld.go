@@ -81,7 +81,7 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 				pos := &position{float64(x), float64(y)}
 				for step := 0; step < kernelHalf; step++ {
 					tmp := c.etf.flowField.GetVecfAt(int(pos.x), int(pos.y))
-					direction := &position{float64(tmp[0]), float64(tmp[1])}
+					direction := &position{x: float64(tmp[0]), y: float64(tmp[1])}
 
 					if direction.x == 0 && direction.y == 0 {
 						break
@@ -106,11 +106,10 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 				}
 
 				// Integral alone inverse ETF
-				// Integral alone ETF
 				pos = &position{float64(x), float64(y)}
 				for step := 0; step < kernelHalf; step++ {
 					tmp := c.etf.flowField.GetVecfAt(int(pos.x), int(pos.y))
-					direction := &position{float64(-tmp[0]), float64(-tmp[1])}
+					direction := &position{x: float64(-tmp[0]), y: float64(-tmp[1])}
 
 					if direction.x == 0 && direction.y == 0 {
 						break
@@ -139,6 +138,7 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 
 			newVal := func(gauAcc, gauWeightAcc float64) float64 {
 				var res float64
+
 				if gauAcc/gauWeightAcc > 0 {
 					res = 1.0
 				} else {
