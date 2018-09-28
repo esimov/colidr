@@ -14,6 +14,7 @@ type Cld struct {
 	dog         gocv.Mat
 	fDog        gocv.Mat
 	etf         *Etf
+	wg          sync.WaitGroup
 }
 
 type position struct {
@@ -69,12 +70,10 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 	imgWidth, imgHeight := src.Rows(), src.Cols()
 	kernelHalf := len(gau) - 1
 
-	var wg sync.WaitGroup
-
 	for x := 0; x < imgWidth; x++ {
 		for y := 0; y < imgHeight; y++ {
 			go func(x, y int) {
-				wg.Add(1)
+				c.wg.Add(1)
 				gauAcc := -gau[0] * src.GetDoubleAt(x, y)
 				gauWeightAcc := -gau[0]
 
@@ -136,7 +135,7 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 					}
 				}
 
-				wg.Done()
+				c.wg.Done()
 			}(x, y)
 
 			newVal := func(gauAcc, gauWeightAcc float64) float64 {
@@ -155,7 +154,7 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 		}
 	}
 	gocv.Normalize(dst, &dst, 0, 1, gocv.NormMixMax)
-	wg.Wait()
+	c.wg.Wait()
 }
 
 func (c *Cld) GradientDoG(src, dst gocv.Mat, rho, sigmaC float64) {
@@ -166,13 +165,11 @@ func (c *Cld) GradientDoG(src, dst gocv.Mat, rho, sigmaC float64) {
 
 	kernel := len(gvs) - 1
 
-	var wg sync.WaitGroup
-
 	for x := 0; x < dst.Rows(); x++ {
 		for y := 0; y < dst.Cols(); y++ {
 			go func(x, y int) {
-				wg.Add(1)
-				
+				c.wg.Add(1)
+
 				var (
 					gauCAcc, gauSAcc             float64
 					gauCWeightAcc, gauSWeightAcc float64
@@ -210,11 +207,38 @@ func (c *Cld) GradientDoG(src, dst gocv.Mat, rho, sigmaC float64) {
 				res := vc - rho*vs
 				dst.SetDoubleAt(x, y, res)
 
-				wg.Done()
+				c.wg.Done()
 			}(x, y)
 		}
 	}
-	wg.Wait()
+	c.wg.Wait()
+}
+
+// BinaryThresholding threshold an image as black and white
+func (c *Cld) BinaryThresholding(src gocv.Mat, tau float64) *gocv.Mat {
+	var dst gocv.Mat
+
+	for x := 0; x < src.Rows(); x++ {
+		for y := 0; y < src.Cols(); y++ {
+			go func(x, y int) {
+				c.wg.Add(1)
+
+				h := src.GetDoubleAt(x, y)
+				v := func(h float64) uint8 {
+					if h < tau {
+						return 0
+					}
+					return 255
+				}(h)
+				dst.SetUCharAt(x, y, v)
+
+				c.wg.Done()
+			}(x, y)
+		}
+	}
+	c.wg.Wait()
+
+	return &dst
 }
 
 // gauss computes gaussian function of variance
