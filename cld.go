@@ -56,10 +56,15 @@ func (c *Cld) ReadSource(file string) error {
 }
 
 func (c *Cld) GenerateCld() {
+	originalImg_32FC1 := gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV32F)
+	c.originalImg.ConvertTo(&originalImg_32FC1, gocv.MatTypeCV32F)
 
+	c.GradientDoG(&originalImg_32FC1, &c.dog, Rho, SigmaC)
+	c.FlowDoG(&c.dog, &c.fDog, SigmaM)
+	c.BinaryThresholding(&c.fDog, &c.result, Tau)
 }
 
-func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
+func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 	var (
 		gauAcc       float64
 		gauWeightAcc float64
@@ -153,11 +158,11 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 			dst.SetDoubleAt(x, y, newVal(gauAcc, gauWeightAcc))
 		}
 	}
-	gocv.Normalize(dst, &dst, 0, 1, gocv.NormMixMax)
+	gocv.Normalize(*dst, dst, 0, 1, gocv.NormMixMax)
 	c.wg.Wait()
 }
 
-func (c *Cld) GradientDoG(src, dst gocv.Mat, rho, sigmaC float64) {
+func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	var sigmaS = SigmaRatio * sigmaC
 	var gauC, gauS []float64
 	gvc := makeGaussianVector(sigmaC, gauC)
@@ -174,6 +179,7 @@ func (c *Cld) GradientDoG(src, dst gocv.Mat, rho, sigmaC float64) {
 					gauCAcc, gauSAcc             float64
 					gauCWeightAcc, gauSWeightAcc float64
 				)
+
 				tmp := c.etf.flowField.GetVecfAt(x, y)
 				gradient := position{x: float64(-tmp[0]), y: float64(tmp[1])}
 
@@ -215,9 +221,7 @@ func (c *Cld) GradientDoG(src, dst gocv.Mat, rho, sigmaC float64) {
 }
 
 // BinaryThresholding threshold an image as black and white
-func (c *Cld) BinaryThresholding(src gocv.Mat, tau float64) *gocv.Mat {
-	var dst gocv.Mat
-
+func (c *Cld) BinaryThresholding(src, dst *gocv.Mat, tau float64) {
 	for x := 0; x < src.Rows(); x++ {
 		for y := 0; y < src.Cols(); y++ {
 			go func(x, y int) {
@@ -237,8 +241,24 @@ func (c *Cld) BinaryThresholding(src gocv.Mat, tau float64) *gocv.Mat {
 		}
 	}
 	c.wg.Wait()
+}
 
-	return &dst
+func (c *Cld) combineImage() {
+	for x := 0; x < c.originalImg.Rows(); x++ {
+		for y := 0; y < c.originalImg.Cols(); y++ {
+			go func(x, y int) {
+				c.wg.Add(1)
+
+				h := c.result.GetUCharAt(x, y)
+				if h == 0 {
+					c.originalImg.SetUCharAt(x, y, h)
+				}
+				c.wg.Done()
+			}(x, y)
+		}
+	}
+
+	c.wg.Wait()
 }
 
 // gauss computes gaussian function of variance
