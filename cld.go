@@ -21,10 +21,11 @@ type position struct {
 }
 
 const (
-	SigmaM float64 = 3.0
-	SigmaC float64 = 1.0
-	Rho    float64 = 0.997
-	Tau    float64 = 0.8
+	SigmaRatio float64 = 1.6
+	SigmaM     float64 = 3.0
+	SigmaC     float64 = 1.0
+	Rho        float64 = 0.997
+	Tau        float64 = 0.8
 )
 
 func NewCLD() *Cld {
@@ -100,7 +101,8 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 					pos.x += direction.x
 					pos.y += direction.y
 
-					if int(pos.x) < 0 || int(pos.x) > imgWidth-1 || int(pos.y) < 0 || int(pos.y) > imgHeight-1 {
+					if int(math.Round(pos.x)) < 0 || int(math.Round(pos.x)) > imgWidth-1 ||
+						int(math.Round(pos.y)) < 0 || int(math.Round(pos.y)) > imgHeight-1 {
 						break
 					}
 				}
@@ -128,7 +130,8 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 					pos.x += direction.x
 					pos.y += direction.y
 
-					if int(pos.x) < 0 || int(pos.x) > imgWidth-1 || int(pos.y) < 0 || int(pos.y) > imgHeight-1 {
+					if int(math.Round(pos.x)) < 0 || int(math.Round(pos.x)) > imgWidth-1 ||
+						int(math.Round(pos.y)) < 0 || int(math.Round(pos.y)) > imgHeight-1 {
 						break
 					}
 				}
@@ -155,6 +158,66 @@ func (c *Cld) FlowDoG(src, dst gocv.Mat, sigma float64) {
 	wg.Wait()
 }
 
+func (c *Cld) GradientDoG(src, dst gocv.Mat, rho, sigmaC float64) {
+	var sigmaS = SigmaRatio * sigmaC
+	var gauC, gauS []float64
+	gvc := makeGaussianVector(sigmaC, gauC)
+	gvs := makeGaussianVector(sigmaS, gauS)
+
+	kernel := len(gvs) - 1
+
+	var wg sync.WaitGroup
+
+	for x := 0; x < dst.Rows(); x++ {
+		for y := 0; y < dst.Cols(); y++ {
+			go func(x, y int) {
+				wg.Add(1)
+				
+				var (
+					gauCAcc, gauSAcc             float64
+					gauCWeightAcc, gauSWeightAcc float64
+				)
+				tmp := c.etf.flowField.GetVecfAt(x, y)
+				gradient := position{x: float64(-tmp[0]), y: float64(tmp[1])}
+
+				for step := -kernel; step <= kernel; step++ {
+					row := float64(x) + gradient.x*float64(step)
+					col := float64(y) + gradient.y*float64(step)
+
+					if row > float64(dst.Rows()-1) || row < 0.0 || col > float64(dst.Cols()-1) || col < 0.0 {
+						continue
+					}
+					val := src.GetFloatAt(int(math.Round(row)), int(math.Round(col)))
+					gauIdx := abs(step)
+
+					gauCWeight := func(gauIdx int) float64 {
+						if gauIdx >= len(gvc) {
+							return 0.0
+						}
+						return gvc[gauIdx]
+					}(gauIdx)
+
+					gauSWeight := gvs[gauIdx]
+					gauCAcc += float64(val) * gauCWeight
+					gauSAcc += float64(val) * gauSWeight
+					gauCWeightAcc += gauCWeight
+					gauSWeightAcc += gauSWeight
+				}
+
+				vc := gauCAcc / gauCWeightAcc
+				vs := gauSAcc / gauSWeightAcc
+
+				res := vc - rho*vs
+				dst.SetDoubleAt(x, y, res)
+
+				wg.Done()
+			}(x, y)
+		}
+	}
+	wg.Wait()
+}
+
+// gauss computes gaussian function of variance
 func gauss(x, mean, sigma float64) float64 {
 	return math.Exp((-(x-mean)*(x-mean))/(2*sigma*sigma)) / math.Sqrt(math.Pi*2.0*sigma*sigma)
 }
@@ -180,4 +243,12 @@ func makeGaussianVector(sigma float64, gau []float64) []float64 {
 	}
 
 	return gau
+}
+
+// abs return the absolute value of x
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
