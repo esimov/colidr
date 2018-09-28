@@ -3,9 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"gocv.io/x/gocv"
 	"math"
 	"sync"
+
+	"gocv.io/x/gocv"
 )
 
 type Cld struct {

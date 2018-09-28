@@ -12,6 +12,7 @@ type Etf struct {
 	flowField   gocv.Mat
 	refinedEtf  gocv.Mat
 	gradientMag gocv.Mat
+	wg sync.WaitGroup
 }
 
 type Point struct {
@@ -67,44 +68,44 @@ func (etf *Etf) InitEtf(file string, mat gocv.Mat) error {
 
 	flowField := gocv.NewMatWithSize(mat.Rows(), mat.Cols(), gocv.MatTypeCV32F)
 
-	var wg sync.WaitGroup
-
 	for x := 0; x < src.Rows(); x++ {
 		for y := 0; y < src.Cols(); y++ {
 			go func(x, y int) {
-				wg.Add(1)
+				etf.wg.Add(1)
 
 				u := gradX.GetVecfAt(x, y)
 				v := gradY.GetVecfAt(x, y)
 
-				normalized := gocv.NewMatFromScalar(gocv.Scalar{Val1: float64(u[0]), Val2: float64(v[0]), Val3: 0, Val4: 0}, gocv.MatTypeCV32F)
+				normalized := gocv.NewMatWithSizeFromScalar(
+					gocv.Scalar{Val1: float64(u[0]), Val2: float64(v[0]), Val3: 0, Val4: 0},
+					etf.flowField.Rows(),
+					etf.flowField.Cols(),
+					gocv.MatTypeCV32F,
+				)
 				gocv.Normalize(normalized, &flowField, 0.0, 1.0, gocv.NormMixMax)
 
-				wg.Done()
+				etf.wg.Done()
 			}(x, y)
 		}
 	}
 	flowField = etf.rotateFlow(flowField, 90)
-	wg.Wait()
+	etf.wg.Wait()
 
 	return nil
 }
 
 func (etf *Etf) RefineEtf(kernel int) {
-	var wg sync.WaitGroup
-
 	for x := 0; x < etf.flowField.Rows(); x++ {
 		for y := 0; y < etf.flowField.Cols(); y++ {
 			// Spawn computation into separate goroutines
 			go func(x, y int) {
-				wg.Add(1)
-				defer wg.Done()
-
+				etf.wg.Add(1)
 				etf.computeNewVector(x, y, kernel)
+				etf.wg.Done()
 			}(x, y)
 		}
 	}
-	wg.Wait()
+	etf.wg.Wait()
 
 	etf.flowField = etf.refinedEtf
 }
@@ -130,7 +131,12 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 			tNew += phi * tCurY[0] * weightSpatial * weightMagnitude * weightDirection
 		}
 	}
-	normalized := gocv.NewMatFromScalar(gocv.Scalar{Val1: float64(tNew), Val2: 0, Val3: 0, Val4: 0}, gocv.MatTypeCV32F)
+	normalized := gocv.NewMatWithSizeFromScalar(
+		gocv.Scalar{Val1: float64(tNew), Val2: float64(tNew), Val3: float64(tNew), Val4: 0},
+		etf.flowField.Rows(),
+		etf.flowField.Cols(),
+		gocv.MatTypeCV32F,
+	)
 	gocv.Normalize(normalized, &etf.refinedEtf, 0.0, 1.0, gocv.NormMixMax)
 }
 
