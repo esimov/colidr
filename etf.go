@@ -12,7 +12,7 @@ type Etf struct {
 	flowField   gocv.Mat
 	refinedEtf  gocv.Mat
 	gradientMag gocv.Mat
-	wg sync.WaitGroup
+	wg          sync.WaitGroup
 }
 
 type Point struct {

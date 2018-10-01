@@ -30,8 +30,17 @@ const (
 	Tau        float64 = 0.8
 )
 
-func NewCLD() *Cld {
-	return &Cld{}
+func NewCLD(row, col int) *Cld {
+	var wg sync.WaitGroup
+	originalImg := gocv.NewMatWithSize(row, col, gocv.MatTypeCV8UC1)
+	result := gocv.NewMatWithSize(row, col, gocv.MatTypeCV8UC1)
+	dog := gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
+	fDog := gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
+
+	etf := NewETF()
+	etf.Init(row, col)
+
+	return &Cld{originalImg, result, dog, fDog, etf, wg}
 }
 
 func (c *Cld) Init(row, col int) {
@@ -57,10 +66,10 @@ func (c *Cld) ReadSource(file string) error {
 }
 
 func (c *Cld) GenerateCld() {
-	originalImg_32FC1 := gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV32F)
-	c.originalImg.ConvertTo(&originalImg_32FC1, gocv.MatTypeCV32F)
+	originalImg32FC1 := gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV32F)
+	c.originalImg.ConvertTo(&originalImg32FC1, gocv.MatTypeCV32F)
 
-	c.GradientDoG(&originalImg_32FC1, &c.dog, Rho, SigmaC)
+	c.GradientDoG(&originalImg32FC1, &c.dog, Rho, SigmaC)
 	c.FlowDoG(&c.dog, &c.fDog, SigmaM)
 	c.BinaryThresholding(&c.fDog, &c.result, Tau)
 }
