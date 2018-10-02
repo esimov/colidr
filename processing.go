@@ -6,6 +6,8 @@ import (
 	"math"
 	"sync"
 
+	"image/color"
+
 	"gocv.io/x/gocv"
 )
 
@@ -112,3 +114,22 @@ func (pp *PostProcessing) VisualizeEtf(dis gocv.Mat) *gocv.Mat {
 	return &dst
 }
 
+func (pp *PostProcessing) FlowField(dis gocv.Mat) *gocv.Mat {
+	resolution := 10
+
+	for i := 0; i < pp.flowField.Rows(); i += resolution {
+		for j := 0; j < pp.flowField.Cols(); j += resolution {
+			v := pp.flowField.GetVecfAt(i, j)
+			p1 := &point{x: int(v[i]), y: int(v[j])}
+			p2 := &point{x: i + int(v[0])*5, y: j + int(v[1])*5}
+
+			gocv.ArrowedLine(
+				&dis,
+				image.Point{X: p1.x, Y: p1.y}, image.Point{X: p2.x, Y: p2.y},
+				color.RGBA{255, 0, 0, 255},
+				1,
+			)
+		}
+	}
+	return &dis
+}

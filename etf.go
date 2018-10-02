@@ -15,7 +15,7 @@ type Etf struct {
 	wg          sync.WaitGroup
 }
 
-type Point struct {
+type point struct {
 	x int
 	y int
 }
@@ -119,7 +119,7 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 			phi := etf.computePhi(tCurX, tCurY)
 
 			// Compute the euclidean distance of the current point and the neighboring point.
-			weightSpatial := etf.computeWeightSpatial(Point{x, y}, Point{r, c}, kernel)
+			weightSpatial := etf.computeWeightSpatial(point{x, y}, point{r, c}, kernel)
 			weightMagnitude := etf.computeWeightMagnitude(etf.gradientMag.GetFloatAt(x, y), etf.gradientMag.GetFloatAt(r, c))
 			weightDirection := etf.computeWeightDirection(tCurX, tCurY)
 
@@ -143,7 +143,7 @@ func (etf *Etf) computePhi(x, y gocv.Vecf) float32 {
 	return -1.0
 }
 
-func (etf *Etf) computeWeightSpatial(p1, p2 Point, r int) float32 {
+func (etf *Etf) computeWeightSpatial(p1, p2 point, r int) float32 {
 	// Get the euclidean distance of two points.
 	dx := p2.x - p1.x
 	dy := p2.y - p1.y
