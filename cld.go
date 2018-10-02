@@ -168,7 +168,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 			dst.SetDoubleAt(x, y, newVal(gauAcc, gauWeightAcc))
 		}
 	}
-	gocv.Normalize(*dst, dst, 0, 1, gocv.NormMixMax)
+	gocv.Normalize(*dst, dst, 0, 1, gocv.NormMinMax)
 	c.wg.Wait()
 }
 
@@ -253,7 +253,7 @@ func (c *Cld) BinaryThresholding(src, dst *gocv.Mat, tau float64) {
 	c.wg.Wait()
 }
 
-func (c *Cld) combineImage() {
+func (c *Cld) CombineImage() {
 	for x := 0; x < c.originalImg.Rows(); x++ {
 		for y := 0; y < c.originalImg.Cols(); y++ {
 			go func(x, y int) {

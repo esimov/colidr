@@ -24,11 +24,6 @@ func NewETF() *Etf {
 	return &Etf{}
 }
 
-func main() {
-	etf := NewETF()
-	etf.Init(300, 300)
-}
-
 func (etf *Etf) Init(row, col int) {
 	size := gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
 
@@ -42,7 +37,7 @@ func (etf *Etf) InitEtf(file string, mat gocv.Mat) error {
 
 	src := gocv.IMRead(file, gocv.IMReadUnchanged)
 	dst := gocv.NewMat()
-	gocv.Normalize(src, &dst, 0.0, 1.0, gocv.NormMixMax)
+	gocv.Normalize(src, &dst, 0.0, 1.0, gocv.NormMinMax)
 
 	newImg, err := dst.ToImage()
 	if err != nil {
@@ -64,7 +59,7 @@ func (etf *Etf) InitEtf(file string, mat gocv.Mat) error {
 
 	// Compute gradient
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
-	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMixMax)
+	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMinMax)
 
 	flowField := gocv.NewMatWithSize(mat.Rows(), mat.Cols(), gocv.MatTypeCV32F)
 
@@ -82,7 +77,7 @@ func (etf *Etf) InitEtf(file string, mat gocv.Mat) error {
 					etf.flowField.Cols(),
 					gocv.MatTypeCV32F,
 				)
-				gocv.Normalize(normalized, &flowField, 0.0, 1.0, gocv.NormMixMax)
+				gocv.Normalize(normalized, &flowField, 0.0, 1.0, gocv.NormMinMax)
 
 				etf.wg.Done()
 			}(x, y)
@@ -137,7 +132,7 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 		etf.flowField.Cols(),
 		gocv.MatTypeCV32F,
 	)
-	gocv.Normalize(normalized, &etf.refinedEtf, 0.0, 1.0, gocv.NormMixMax)
+	gocv.Normalize(normalized, &etf.refinedEtf, 0.0, 1.0, gocv.NormMinMax)
 }
 
 func (etf *Etf) computePhi(x, y gocv.Vecf) float32 {
