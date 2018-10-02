@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"gocv.io/x/gocv"
+	"image"
 )
 
 type Cld struct {
@@ -268,6 +269,8 @@ func (c *Cld) CombineImage() {
 		}
 	}
 
+	// Blur the image a little bit
+	gocv.GaussianBlur(c.originalImg, c.originalImg, image.Point{3, 3}, 0.0, 0.0, gocv.BorderDefault)
 	c.wg.Wait()
 }
 
