@@ -1049,6 +1049,16 @@ func Resize(src Mat, dst *Mat, sz image.Point, fx, fy float64, interp Interpolat
 	return
 }
 
+// Randu generates a single uniformly-distributed random number or an array of random numbers,
+// storing the result in dst. The array must be pre-allocated.
+//
+// For further details, please see:
+// https://docs.opencv.org/master/d2/de8/group__core__array.html#ga1ba1026dca0807b27057ba6a49d258c0
+func Randu(dst *Mat, low, high float64) {
+	C.Randu(dst.p, C.double(low), C.double(high))
+	return
+}
+
 // GetRotationMatrix2D calculates an affine matrix of 2D rotation.
 //
 // For further details, please see:

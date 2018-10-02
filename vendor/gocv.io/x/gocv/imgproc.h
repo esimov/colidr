@@ -63,6 +63,7 @@ struct Size GetTextSize(const char* text, int fontFace, double fontScale, int th
 void PutText(Mat img, const char* text, Point org, int fontFace, double fontScale,
              Scalar color, int thickness);
 void Resize(Mat src, Mat dst, Size sz, double fx, double fy, int interp);
+void Randu(Mat src, double low, double high);
 Mat GetRotationMatrix2D(Point center, double angle, double scale);
 void WarpAffine(Mat src, Mat dst, Mat rot_mat, Size dsize);
 void WarpAffineWithParams(Mat src, Mat dst, Mat rot_mat, Size dsize, int flags, int borderMode,

@@ -364,6 +364,10 @@ void Resize(Mat src, Mat dst, Size dsize, double fx, double fy, int interp) {
     cv::resize(*src, *dst, sz, fx, fy, interp);
 }
 
+void Randu(Mat src, double low, double high) {
+    cv::randu(*src, low, high);
+}
+
 Mat GetRotationMatrix2D(Point center, double angle, double scale) {
     cv::Point pt(center.x, center.y);
     return new  cv::Mat(cv::getRotationMatrix2D(pt, angle, scale));
