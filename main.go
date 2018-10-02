@@ -6,6 +6,6 @@ package main
 }*/
 
 func main() {
-	NewPP(100, 100)
+	//NewPP(100, 100)
 
 }

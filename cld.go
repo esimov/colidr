@@ -168,7 +168,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 			dst.SetDoubleAt(x, y, newVal(gauAcc, gauWeightAcc))
 		}
 	}
-	gocv.Normalize(*dst, dst, 0, 1, gocv.NormMinMax)
+	gocv.Normalize(*dst, dst, 0.0, 1.0, gocv.NormMinMax)
 	c.wg.Wait()
 }
 

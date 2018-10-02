@@ -1,20 +1,114 @@
 package main
 
 import (
-	"fmt"
+	"image"
+
+	"math"
+	"sync"
+
 	"gocv.io/x/gocv"
 )
 
 type PostProcessing struct {
-	flowField gocv.Mat
-	dis gocv.Mat
+	Etf
 }
 
-func NewPP(rows, cols int) *PostProcessing {
-	noise := gocv.NewMatWithSize(rows/2, cols/2, gocv.MatTypeCV32F)
-	//dis := gocv.NewMatWithSize(pp.flowField.Rows(), pp.flowField.Cols(), gocv.MatTypeCV32F)
-	gocv.Randu(&noise, 0, 1.0)
-	fmt.Println(noise.GetFloatAt(10, 10))
-
+func NewPP() *PostProcessing {
 	return &PostProcessing{}
 }
+
+func (pp *PostProcessing) VisualizeEtf(dis gocv.Mat) *gocv.Mat {
+	noise := gocv.NewMatWithSize(pp.flowField.Rows()/2, pp.flowField.Cols()/2, gocv.MatTypeCV32F)
+	dst := gocv.NewMatWithSize(pp.flowField.Rows(), pp.flowField.Cols(), gocv.MatTypeCV32F)
+
+	dis.CopyTo(&dst)
+	gocv.Randu(&noise, 0, 1.0)
+	gocv.Resize(noise, &noise, image.Point{noise.Rows(), noise.Cols()}, 0, 0, gocv.InterpolationNearestNeighbor)
+
+	s := 10
+	nRows := noise.Rows()
+	nCols := noise.Cols()
+	sigma := 2 * s * s
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < nRows; i++ {
+		for j := 0; j < nCols; j++ {
+			go func(i, j int) {
+				wg.Add(1)
+				defer wg.Done()
+				wSum := 0.0
+				x := i
+				y := j
+
+				for k := 0; k < s; k++ {
+					ffv := pp.flowField.GetFloatAt((x+nRows)%nRows, (y+nCols)%nCols)
+					ffm := gocv.NewMatWithSizeFromScalar(
+						gocv.Scalar{Val1: float64(ffv), Val2: float64(ffv), Val3: float64(ffv), Val4: float64(ffv)},
+						pp.flowField.Rows(),
+						pp.flowField.Cols(),
+						gocv.MatTypeCV32F,
+					)
+					gocv.Normalize(ffm, &ffm, 0.0, 1.0, gocv.NormMinMax)
+
+					v := ffm.GetVecfAt((x+nRows)%nRows, (y+nCols)%nCols)
+					if v[0] != 0 {
+						x = x + (abs(int(v[0]))/abs(int(v[0]))+abs(int(v[1])))*(abs(int(v[0]))/abs(int(v[0])))
+					}
+					if v[1] != 0 {
+						y = y + (abs(int(v[1]))/abs(int(v[0]))+abs(int(v[1])))*(abs(int(v[1]))/abs(int(v[1])))
+					}
+					r2 := float64(k * k)
+					w := (1.0 / (math.Pi * float64(sigma))) * math.Exp(-(r2)/float64(sigma))
+					xx := (int(x) + nRows) % nRows
+					yy := (int(y) + nCols) % nCols
+
+					dstAt := dst.GetFloatAt(i, j)
+					noiseAt := noise.GetFloatAt(xx, yy)
+					newVal := float64(dstAt) + (w * float64(noiseAt))
+					dst.SetFloatAt(i, j, float32(newVal))
+
+					wSum += w
+				}
+				x = i
+				y = j
+
+				for k := 0; k < s; k++ {
+					ffv := pp.flowField.GetFloatAt((x+nRows)%nRows, (y+nCols)%nCols)
+					ffm := gocv.NewMatFromScalar(gocv.Scalar{Val1: float64(ffv), Val2: float64(ffv), Val3: float64(ffv), Val4: float64(ffv)}, gocv.MatTypeCV32F)
+					gocv.Normalize(ffm, &ffm, 0.0, 1.0, gocv.NormMinMax)
+
+					v := ffm.GetVecfAt((x+nRows)%nRows, (y+nCols)%nCols)
+					if v[0] != 0 {
+						x = x + (abs(int(v[0]))/abs(int(v[0]))+abs(int(v[1])))*(abs(int(v[0]))/abs(int(v[0])))
+					}
+					if v[1] != 0 {
+						y = y + (abs(int(v[1]))/abs(int(v[0]))+abs(int(v[1])))*(abs(int(v[1]))/abs(int(v[1])))
+					}
+					r2 := float64(k * k)
+					w := (1.0 / (math.Pi * float64(sigma))) * math.Exp(-(r2)/float64(sigma))
+
+					dstAt := dst.GetFloatAt(i, j)
+					noiseAt := noise.GetFloatAt((x+nRows)%nRows, (y+nCols)%nCols)
+					newVal := float64(dstAt) + (w * float64(noiseAt))
+					dst.SetFloatAt(i, j, float32(newVal))
+
+					wSum += w
+				}
+				dstAt := dst.GetFloatAt(i, j)
+				dstAt /= float32(wSum)
+
+				dis = gocv.NewMatWithSizeFromScalar(
+					gocv.Scalar{Val1: float64(dstAt), Val2: float64(dstAt), Val3: float64(dstAt), Val4: float64(dstAt)},
+					pp.flowField.Rows(),
+					pp.flowField.Cols(),
+					gocv.MatTypeCV32F,
+				)
+			}(i, j)
+		}
+	}
+	wg.Wait()
+
+	return &dst
+}
+
