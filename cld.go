@@ -1,13 +1,13 @@
-package main
+package colidr
 
 import (
 	"errors"
 	"fmt"
+	"image"
 	"math"
 	"sync"
 
 	"gocv.io/x/gocv"
-	"image"
 )
 
 type Cld struct {
@@ -17,22 +17,26 @@ type Cld struct {
 	fDog        gocv.Mat
 	etf         *Etf
 	wg          sync.WaitGroup
+	CldOptions
+}
+
+type CldOptions struct {
+	SigmaR float64
+	SigmaM float64
+	SigmaC float64
+	Rho    float64
+	Tau    float64
 }
 
 type position struct {
 	x, y float64
 }
 
-const (
-	SigmaRatio float64 = 1.6
-	SigmaM     float64 = 3.0
-	SigmaC     float64 = 1.0
-	Rho        float64 = 0.997
-	Tau        float64 = 0.8
-)
-
-func NewCLD(row, col int) *Cld {
+func NewCLD(imgFile string, cldOpts CldOptions) (*Cld, error) {
 	var wg sync.WaitGroup
+	src := gocv.IMRead(imgFile, gocv.IMReadColor)
+	row, col := src.Rows(), src.Cols()
+
 	originalImg := gocv.NewMatWithSize(row, col, gocv.MatTypeCV8UC1)
 	result := gocv.NewMatWithSize(row, col, gocv.MatTypeCV8UC1)
 	dog := gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
@@ -41,38 +45,22 @@ func NewCLD(row, col int) *Cld {
 	etf := NewETF()
 	etf.Init(row, col)
 
-	return &Cld{originalImg, result, dog, fDog, etf, wg}
-}
-
-func (c *Cld) Init(row, col int) {
-	c.originalImg = gocv.NewMatWithSize(row, col, gocv.MatTypeCV8UC1)
-	c.result = gocv.NewMatWithSize(row, col, gocv.MatTypeCV8UC1)
-	c.dog = gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
-	c.fDog = gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
-
-	c.etf = NewETF()
-	c.etf.Init(row, col)
-}
-
-func (c *Cld) ReadSource(file string) error {
-	c.originalImg = gocv.IMRead(file, gocv.IMReadGrayScale)
-	c.result = gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV8UC1)
-	c.dog = gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV8UC1)
-	c.fDog = gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV8UC1)
-
-	if err := c.etf.InitialEtf(file, c.originalImg); err != nil {
-		return errors.New(fmt.Sprintf("Unable to initialize edge tangent flow matrix: %s\n", err))
+	err := etf.InitialEtf(imgFile, originalImg)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Unable to initialize edge tangent flow matrix: %s\n", err))
 	}
-	return nil
+	return &Cld{
+		originalImg, result, dog, fDog, etf, wg, cldOpts,
+	}, nil
 }
 
 func (c *Cld) GenerateCld() {
 	originalImg32FC1 := gocv.NewMatWithSize(c.originalImg.Rows(), c.originalImg.Cols(), gocv.MatTypeCV32F)
 	c.originalImg.ConvertTo(&originalImg32FC1, gocv.MatTypeCV32F)
 
-	c.GradientDoG(&originalImg32FC1, &c.dog, Rho, SigmaC)
-	c.FlowDoG(&c.dog, &c.fDog, SigmaM)
-	c.BinaryThresholding(&c.fDog, &c.result, Tau)
+	c.GradientDoG(&originalImg32FC1, &c.dog, c.Rho, c.SigmaC)
+	c.FlowDoG(&c.dog, &c.fDog, c.SigmaM)
+	c.BinaryThresholding(&c.fDog, &c.result, c.Tau)
 }
 
 func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
@@ -174,7 +162,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 }
 
 func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
-	var sigmaS = SigmaRatio * sigmaC
+	var sigmaS = c.SigmaR * sigmaC
 	var gauC, gauS []float64
 	gvc := makeGaussianVector(sigmaC, gauC)
 	gvs := makeGaussianVector(sigmaS, gauS)
