@@ -32,10 +32,11 @@ func (etf *Etf) Init(row, col int) {
 	etf.gradientMag = gocv.NewMatWithSize(size.Rows(), size.Cols(), gocv.MatTypeCV32F)
 }
 
-func (etf *Etf) InitEtf(file string, mat gocv.Mat) error {
+func (etf *Etf) InitialEtf(file string, mat gocv.Mat) error {
 	etf.resizeMat(mat)
 
-	src := gocv.IMRead(file, gocv.IMReadUnchanged)
+	// Todo check if we should use color or grayscale.
+	src := gocv.IMRead(file, gocv.IMReadGrayScale)
 	rows, cols := src.Rows(), src.Cols()
 	srcNew := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
 	gocv.Normalize(src, &srcNew, 0.0, 1.0, gocv.NormMinMax)
