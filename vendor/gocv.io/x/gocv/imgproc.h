@@ -32,6 +32,7 @@ double ContourArea(Contour con);
 struct RotatedRect MinAreaRect(Points points);
 struct Contours FindContours(Mat src, int mode, int method);
 void GaussianBlur(Mat src, Mat dst, Size ps, double sX, double sY, int bt);
+void Sobel(Mat src, Mat dst, int dDepth, int dx, int dy, int kSize, double scale, double delta, int borderType);
 void Laplacian(Mat src, Mat dst, int dDepth, int kSize, double scale, double delta, int borderType);
 void Scharr(Mat src, Mat dst, int dDepth, int dx, int dy, double scale, double delta,
             int borderType);
