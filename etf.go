@@ -36,26 +36,14 @@ func (etf *Etf) InitEtf(file string, mat gocv.Mat) error {
 	etf.resizeMat(mat)
 
 	src := gocv.IMRead(file, gocv.IMReadUnchanged)
-	dst := gocv.NewMat()
-	gocv.Normalize(src, &dst, 0.0, 1.0, gocv.NormMinMax)
+	rows, cols := src.Rows(), src.Cols()
+	srcNew := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
+	gocv.Normalize(src, &srcNew, 0.0, 1.0, gocv.NormMinMax)
 
-	newImg, err := dst.ToImage()
-	if err != nil {
-		return err
-	}
-
-	sobelGradX := Sobel(newImg.(*image.NRGBA), 5)
-	sobelGradY := Sobel(newImg.(*image.NRGBA), 5)
-
-	gradX, err := gocv.ImageToMatRGBA(sobelGradX)
-	if err != nil {
-		return err
-	}
-	gradY, err := gocv.ImageToMatRGBA(sobelGradY)
-	if err != nil {
-		return err
-	}
-	etf.gradientMag, err = gocv.ImageToMatRGB(sobelGradX)
+	gradX := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
+	gradY := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
+	gocv.Sobel(srcNew, &gradX, gocv.MatTypeCV32F, 1, 0, 5, 1, 0, gocv.BorderDefault)
+	gocv.Sobel(srcNew, &gradY, gocv.MatTypeCV32F, 0, 1, 5, 1, 0, gocv.BorderDefault)
 
 	// Compute gradient
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
