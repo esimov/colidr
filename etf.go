@@ -24,16 +24,14 @@ func NewETF() *Etf {
 	return &Etf{}
 }
 
-func (etf *Etf) Init(row, col int) {
-	size := gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
-
-	etf.flowField = gocv.NewMatWithSize(size.Rows(), size.Cols(), gocv.MatTypeCV32F)
-	etf.refinedEtf = gocv.NewMatWithSize(size.Rows(), size.Cols(), gocv.MatTypeCV32F)
-	etf.gradientMag = gocv.NewMatWithSize(size.Rows(), size.Cols(), gocv.MatTypeCV32F)
+func (etf *Etf) Init(rows, cols int) {
+	etf.flowField = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
+	etf.refinedEtf = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
+	etf.gradientMag = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
 }
 
-func (etf *Etf) InitialEtf(file string, mat gocv.Mat) error {
-	etf.resizeMat(mat)
+func (etf *Etf) InitialEtf(file string, size image.Point) error {
+	etf.resizeMat(size)
 
 	// Todo check if we should use color or grayscale.
 	src := gocv.IMRead(file, gocv.IMReadGrayScale)
@@ -50,29 +48,24 @@ func (etf *Etf) InitialEtf(file string, mat gocv.Mat) error {
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
 	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMinMax)
 
-	flowField := gocv.NewMatWithSize(mat.Rows(), mat.Cols(), gocv.MatTypeCV32F)
+	flowField := gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
 
-	for x := 0; x < src.Rows(); x++ {
-		for y := 0; y < src.Cols(); y++ {
+	for x := 0; x < rows; x++ {
+		for y := 0; y < cols; y++ {
 			go func(x, y int) {
 				etf.wg.Add(1)
-
 				u := gradX.GetVecfAt(x, y)
 				v := gradY.GetVecfAt(x, y)
 
-				normalized := gocv.NewMatWithSizeFromScalar(
-					gocv.Scalar{Val1: float64(u[0]), Val2: float64(v[0]), Val3: 0, Val4: 0},
-					etf.flowField.Rows(),
-					etf.flowField.Cols(),
-					gocv.MatTypeCV32F,
-				)
-				gocv.Normalize(normalized, &flowField, 0.0, 1.0, gocv.NormMinMax)
+				// Update the flowField vector with values obtained from sobel matrix.
+				flowField.SetTo(gocv.Scalar{Val1: float64(u[0]), Val2: float64(v[0]), Val3: 0, Val4: 0})
+				//gocv.Normalize(flowField, &flowField, 1.0, 0.0, gocv.NormMinMax)
 
 				etf.wg.Done()
 			}(x, y)
 		}
 	}
-	flowField = etf.rotateFlow(flowField, 90)
+	etf.flowField = etf.rotateFlow(flowField, 90)
 	etf.wg.Wait()
 
 	return nil
@@ -157,10 +150,10 @@ func (etf *Etf) computeWeightDirection(x, y gocv.Vecf) float32 {
 	return float32(math.Abs(float64(s)))
 }
 
-func (etf *Etf) resizeMat(size gocv.Mat) {
-	gocv.Resize(etf.flowField, &etf.flowField, image.Point{size.Rows(), size.Cols()}, 0, 0, gocv.InterpolationDefault)
-	gocv.Resize(etf.refinedEtf, &etf.refinedEtf, image.Point{size.Rows(), size.Cols()}, 0, 0, gocv.InterpolationDefault)
-	gocv.Resize(etf.gradientMag, &etf.gradientMag, image.Point{size.Rows(), size.Cols()}, 0, 0, gocv.InterpolationDefault)
+func (etf *Etf) resizeMat(size image.Point) {
+	gocv.Resize(etf.flowField, &etf.flowField, size, 0, 0, gocv.InterpolationDefault)
+	gocv.Resize(etf.refinedEtf, &etf.refinedEtf, size, 0, 0, gocv.InterpolationDefault)
+	gocv.Resize(etf.gradientMag, &etf.gradientMag, size, 0, 0, gocv.InterpolationDefault)
 }
 
 func (etf *Etf) rotateFlow(src gocv.Mat, theta float64) gocv.Mat {

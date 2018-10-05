@@ -17,10 +17,10 @@ type Cld struct {
 	fDog        gocv.Mat
 	etf         *Etf
 	wg          sync.WaitGroup
-	CldOptions
+	Options
 }
 
-type CldOptions struct {
+type Options struct {
 	SigmaR float64
 	SigmaM float64
 	SigmaC float64
@@ -32,22 +32,23 @@ type position struct {
 	x, y float64
 }
 
-func NewCLD(imgFile string, cldOpts CldOptions) (*Cld, error) {
-	var wg sync.WaitGroup
-	src := gocv.IMRead(imgFile, gocv.IMReadColor)
-	row, col := src.Rows(), src.Cols()
+func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
+	src := gocv.IMRead(imgFile, gocv.IMReadGrayScale)
+	rows, cols := src.Rows(), src.Cols()
 
-	originalImg := gocv.NewMatWithSize(row, col, gocv.MatTypeCV8UC1)
-	result := gocv.NewMatWithSize(row, col, gocv.MatTypeCV8UC1)
-	dog := gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
-	fDog := gocv.NewMatWithSize(row, col, gocv.MatTypeCV32F)
+	originalImg := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV8UC1)
+	result := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV8UC1)
+	dog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
+	fDog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
+
+	var wg sync.WaitGroup
 
 	etf := NewETF()
-	etf.Init(row, col)
+	etf.Init(rows, cols)
 
-	err := etf.InitialEtf(imgFile, originalImg)
+	err := etf.InitialEtf(imgFile, image.Point{X: rows, Y: cols})
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Unable to initialize edge tangent flow matrix: %s\n", err))
+		return nil, errors.New(fmt.Sprintf("Unable to initialize edge tangent flow: %s\n", err))
 	}
 	return &Cld{
 		originalImg, result, dog, fDog, etf, wg, cldOpts,

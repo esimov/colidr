@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	opts := colidr.CldOptions{
+	opts := colidr.Options{
 		SigmaR: 1.6,
 		SigmaM: 3.0,
 		SigmaC: 1.0,
