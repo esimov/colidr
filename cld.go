@@ -46,7 +46,7 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	etf := NewETF()
 	etf.Init(rows, cols)
 
-	err := etf.InitialEtf(imgFile, image.Point{X: rows, Y: cols})
+	err := etf.SetDefaultEtf(imgFile, image.Point{Y: rows, X: cols})
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to initialize edge tangent flow: %s\n", err))
 	}
@@ -77,8 +77,8 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 
 	for x := 0; x < imgWidth; x++ {
 		for y := 0; y < imgHeight; y++ {
+			c.wg.Add(1)
 			go func(x, y int) {
-				c.wg.Add(1)
 				gauAcc := -gau[0] * src.GetDoubleAt(x, y)
 				gauWeightAcc := -gau[0]
 
@@ -172,9 +172,8 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 
 	for x := 0; x < dst.Rows(); x++ {
 		for y := 0; y < dst.Cols(); y++ {
+			c.wg.Add(1)
 			go func(x, y int) {
-				c.wg.Add(1)
-
 				var (
 					gauCAcc, gauSAcc             float64
 					gauCWeightAcc, gauSWeightAcc float64
@@ -224,9 +223,8 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 func (c *Cld) BinaryThresholding(src, dst *gocv.Mat, tau float64) {
 	for x := 0; x < src.Rows(); x++ {
 		for y := 0; y < src.Cols(); y++ {
+			c.wg.Add(1)
 			go func(x, y int) {
-				c.wg.Add(1)
-
 				h := src.GetDoubleAt(x, y)
 				v := func(h float64) uint8 {
 					if h < tau {
@@ -246,9 +244,8 @@ func (c *Cld) BinaryThresholding(src, dst *gocv.Mat, tau float64) {
 func (c *Cld) CombineImage() {
 	for x := 0; x < c.originalImg.Rows(); x++ {
 		for y := 0; y < c.originalImg.Cols(); y++ {
+			c.wg.Add(1)
 			go func(x, y int) {
-				c.wg.Add(1)
-
 				h := c.result.GetUCharAt(x, y)
 				if h == 0 {
 					c.originalImg.SetUCharAt(x, y, h)
