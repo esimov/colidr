@@ -32,7 +32,7 @@ func (etf *Etf) Init(rows, cols int) {
 	etf.gradientMag = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
 }
 
-func (etf *Etf) SetDefaultEtf(file string, size image.Point) error {
+func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	etf.resizeMat(size)
 
 	// Todo check if we should use color or grayscale.
@@ -85,25 +85,24 @@ func (etf *Etf) SetDefaultEtf(file string, size image.Point) error {
 func (etf *Etf) RefineEtf(kernel int) {
 	for x := 0; x < etf.flowField.Rows(); x++ {
 		for y := 0; y < etf.flowField.Cols(); y++ {
+			etf.wg.Add(1)
 			// Spawn computation into separate goroutines
 			go func(x, y int) {
-				etf.wg.Add(1)
-				etf.computeNewVector(x, y, kernel)
+				etf.computeNewVector(y, x, kernel)
 				etf.wg.Done()
 			}(x, y)
 		}
 	}
 	etf.wg.Wait()
-
 	etf.flowField = etf.refinedEtf
 }
 
 func (etf *Etf) computeNewVector(x, y int, kernel int) {
 	var tNew float32
-	tCurX := etf.flowField.GetVecfAt(x, y)
+	tCurX := etf.flowField.GetVecfAt(y, x)
 
-	for r := x - kernel; r <= x+kernel; r++ {
-		for c := y - kernel; c <= y+kernel; c++ {
+	for r := y - kernel; r <= y+kernel; r++ {
+		for c := x - kernel; c <= x+kernel; c++ {
 			// Checking for boundaries.
 			if r < 0 || r >= etf.refinedEtf.Rows() || c < 0 || c >= etf.refinedEtf.Cols() {
 				continue
@@ -112,14 +111,14 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 			phi := etf.computePhi(tCurX, tCurY)
 
 			// Compute the euclidean distance of the current point and the neighboring point.
-			weightSpatial := etf.computeWeightSpatial(point{x, y}, point{r, c}, kernel)
-			weightMagnitude := etf.computeWeightMagnitude(etf.gradientMag.GetFloatAt(x, y), etf.gradientMag.GetFloatAt(r, c))
+			weightSpatial := etf.computeWeightSpatial(point{x, y}, point{c, r}, kernel)
+			weightMagnitude := etf.computeWeightMagnitude(etf.gradientMag.GetFloatAt(y, x), etf.gradientMag.GetFloatAt(r, c))
 			weightDirection := etf.computeWeightDirection(tCurX, tCurY)
 
 			tNew += phi * tCurY[0] * weightSpatial * weightMagnitude * weightDirection
 		}
 	}
-	etf.refinedEtf.SetTo(gocv.Scalar{Val1: float64(tNew), Val2: float64(tNew), Val3: float64(tNew), Val4: 0.0})
+	etf.refinedEtf.SetFloatAt(y, x, tNew)
 	gocv.Normalize(etf.refinedEtf, &etf.refinedEtf, 0.0, 1.0, gocv.NormMinMax)
 }
 

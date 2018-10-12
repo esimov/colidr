@@ -15,8 +15,9 @@ func main() {
 		Tau:    0.8,
 	}
 
-	_, err := colidr.NewCLD("input.jpg", opts)
+	cld, err := colidr.NewCLD("input.jpg", opts)
 	if err != nil {
 		log.Fatalf("Cannot initialize Coherent Line Drawing: %v", err)
 	}
+	cld.GenerateCld()
 }
