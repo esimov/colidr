@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"gocv.io/x/gocv"
+	"os"
 )
 
 type Cld struct {
@@ -33,6 +34,11 @@ type position struct {
 }
 
 func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
+	_, err := os.OpenFile(imgFile, os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
 	srcImage := gocv.IMRead(imgFile, gocv.IMReadGrayScale)
 	rows, cols := srcImage.Rows(), srcImage.Cols()
 
@@ -45,7 +51,7 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	etf := NewETF()
 	etf.Init(rows, cols)
 
-	err := etf.InitDefaultEtf(imgFile, image.Point{Y: rows, X: cols})
+	err = etf.InitDefaultEtf(imgFile, image.Point{Y: rows, X: cols})
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to initialize edge tangent flow: %s\n", err))
 	}
