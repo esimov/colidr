@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"sync"
+	"unsafe"
 
 	"gocv.io/x/gocv"
 )
@@ -51,30 +52,34 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMinMax)
 
 	data := etf.flowField.ToBytes()
+	ch := etf.flowField.Channels()
 
-	for x := 0; x < cols; x++ {
-		for y := 0; y < rows; y++ {
+	for x := 0; x < rows; x++ {
+		for y := 0; y < cols; y++ {
 			etf.wg.Add(1)
 			go func(x, y int) {
 				u := gradX.GetVecfAt(x, y)
 				v := gradY.GetVecfAt(x, y)
 
-				// Update the flowField vector with values obtained from sobel matrix.
-				idx := (x + (y * rows)) + etf.flowField.Channels()
+				// Obtain the pixel channel value from Mat image and
+				// update the flowField vector with values from sobel matrix.
+				idx := x*cols*ch + y*ch
+
 				data[idx+0] = byte(u[0])
 				data[idx+1] = byte(v[0])
 				data[idx+2] = 0.0
-				data[idx+3] = 0.0
 
 				//flowField.SetTo(gocv.Scalar{Val1: float64(u[0]), Val2: float64(v[0]), Val3: 0.0, Val4: 0.0})
 				etf.wg.Done()
 			}(x, y)
 		}
 	}
+
 	nm, err := gocv.NewMatFromBytes(rows, cols, gocv.MatChannels3, data)
 	if err != nil {
 		log.Fatalf("Cannot create new Mat from bytes: %v", err)
 	}
+
 	gocv.Normalize(nm, &etf.flowField, 0.0, 1.0, gocv.NormMinMax)
 	etf.rotateFlow(&etf.flowField, 90)
 
@@ -164,6 +169,7 @@ func (etf *Etf) resizeMat(size image.Point) {
 func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 	theta = theta / 180.0 * math.Pi
 	data := src.ToBytes()
+	ch := etf.flowField.Channels()
 
 	for x := 0; x < src.Rows(); x++ {
 		for y := 0; y < src.Cols(); y++ {
@@ -173,12 +179,14 @@ func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 			rx := float64(srcVec[0])*math.Cos(theta) - float64(srcVec[1])*math.Sin(theta)
 			ry := float64(srcVec[0])*math.Sin(theta) + float64(srcVec[1])*math.Cos(theta)
 
-			// Apply the rotation values to the destination matrix.
-			idx := (x + (y * src.Rows())) + src.Channels()
-			data[idx+0] = byte(rx)
-			data[idx+1] = byte(ry)
+			// Obtain the pixel channel value from src Mat image and
+			// apply the rotation values to the destination matrix.
+			idx := x*src.Cols()*ch + y*ch
+
+			// Convert float64 to byte
+			data[idx+0] = byte(*(*byte)(unsafe.Pointer(&rx)))
+			data[idx+1] = byte(*(*byte)(unsafe.Pointer(&ry)))
 			data[idx+2] = 0.0
-			data[idx+3] = 0.0
 		}
 	}
 	nm, err := gocv.NewMatFromBytes(src.Rows(), src.Cols(), gocv.MatChannels3, data)

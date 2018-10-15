@@ -121,7 +121,7 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 			}(y, x)
 		}
 	}
-	fmt.Println(dst.ToBytes())
+	//fmt.Println(dst.ToBytes())
 	c.wg.Wait()
 }
 
@@ -222,7 +222,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 		}
 	}
 	gocv.Normalize(*dst, dst, 0.0, 1.0, gocv.NormMinMax)
-	fmt.Println(dst.ToBytes())
+	//fmt.Println(dst.ToBytes())
 	c.wg.Wait()
 }
 
