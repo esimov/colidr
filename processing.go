@@ -34,8 +34,8 @@ func (pp *PostProcessing) VisualizeEtf(dis gocv.Mat) *gocv.Mat {
 
 	for i := 0; i < nRows; i++ {
 		for j := 0; j < nCols; j++ {
+			wg.Add(1)
 			go func(i, j int) {
-				wg.Add(1)
 				defer wg.Done()
 				wSum := 0.0
 				x := i
