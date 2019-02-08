@@ -49,7 +49,7 @@ func FP16BlobFromImage(img Mat, scaleFactor float32, size image.Point, mean floa
 	fp32Image := NewMat()
 	defer fp32Image.Close()
 
-	square.ConvertTo(&fp32Image, MatTypeCV32F)
+	square.ConvertTo(&fp32Image, MatTypeCV32F, 1)
 
 	if mean != 0 {
 		// subtract mean
