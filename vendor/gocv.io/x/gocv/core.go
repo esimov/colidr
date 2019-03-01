@@ -200,8 +200,8 @@ func (m *Mat) CopyToWithMask(dst *Mat, mask Mat) {
 // For further details, please see:
 // https://docs.opencv.org/master/d3/d63/classcv_1_1Mat.html#adf88c60c5b4980e05bb556080916978b
 //
-func (m *Mat) ConvertTo(dst *Mat, mt MatType) {
-	C.Mat_ConvertTo(m.p, dst.p, C.int(mt))
+func (m *Mat) ConvertTo(dst *Mat, mt MatType, alpha float64) {
+	C.Mat_ConvertTo(m.p, dst.p, C.int(mt), C.double(alpha))
 	return
 }
 

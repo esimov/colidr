@@ -57,8 +57,8 @@ void Mat_CopyToWithMask(Mat m, Mat dst, Mat mask) {
     m->copyTo(*dst, *mask);
 }
 
-void Mat_ConvertTo(Mat m, Mat dst, int type) {
-    m->convertTo(*dst, type);
+void Mat_ConvertTo(Mat m, Mat dst, int type, double alpha) {
+    m->convertTo(*dst, type, alpha);
 }
 
 // Mat_ToBytes returns the bytes representation of the underlying data.
