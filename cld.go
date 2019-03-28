@@ -40,15 +40,16 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 
 	srcImage := gocv.IMRead(imgFile, gocv.IMReadGrayScale)
 	rows, cols := srcImage.Rows(), srcImage.Cols()
+	fmt.Println(rows, cols)
 
-	result := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV8UC1)
-	dog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
-	fDog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
+	result := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV8UC1)
+	dog := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV32F)
+	fDog := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV32F)
 
 	var wg sync.WaitGroup
 
 	etf := NewETF()
-	etf.Init(rows, cols)
+	etf.Init(cols, rows)
 
 	err := etf.InitDefaultEtf(imgFile, image.Point{Y: rows, X: cols})
 	if err != nil {
@@ -61,11 +62,11 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 
 func (c *Cld) GenerateCld() {
 	srcImg32FC1 := gocv.NewMatWithSize(c.srcImage.Rows(), c.srcImage.Cols(), gocv.MatTypeCV32F)
-	c.srcImage.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F)
+	c.srcImage.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0 / 255.0)
 
 	c.GradientDoG(&srcImg32FC1, &c.dog, c.Rho, c.SigmaC)
-	c.FlowDoG(&c.dog, &c.fDog, c.SigmaM)
-	c.BinaryThresholding(&c.fDog, &c.result, c.Tau)
+	//c.FlowDoG(&c.dog, &c.fDog, c.SigmaM)
+	//c.BinaryThresholding(&c.fDog, &c.result, c.Tau)
 }
 
 func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
@@ -74,11 +75,14 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	gvs := makeGaussianVector(sigmaS)
 
 	kernel := len(gvs) - 1
+	fmt.Println(dst.Cols(), dst.Rows())
+	dst.SetDoubleAt(390, 576, 100)
 
-	for y := 0; y < dst.Rows(); y++ {
-		for x := 0; x < dst.Cols(); x++ {
-			c.wg.Add(1)
-			go func(y, x int) {
+	os.Exit(2)
+	for y := 0; y < dst.Cols(); y++ {
+		for x := 0; x < dst.Rows(); x++ {
+			//c.wg.Add(1)
+			//go func(x, y int) {
 				var (
 					gauCAcc, gauSAcc             float64
 					gauCWeightAcc, gauSWeightAcc float64
@@ -115,14 +119,15 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 				vs := gauSAcc / gauSWeightAcc
 
 				res := vc - rho*vs
+			fmt.Println(y, x)
 				dst.SetDoubleAt(y, x, res)
 
-				c.wg.Done()
-			}(y, x)
+			//	c.wg.Done()
+			//}(x, y)
 		}
 	}
-	//fmt.Println(dst.ToBytes())
-	c.wg.Wait()
+	fmt.Println(dst.ToBytes())
+	//c.wg.Wait()
 }
 
 func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
@@ -147,7 +152,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 				pos := &position{float64(x), float64(y)}
 				for step := 0; step < kernelHalf; step++ {
 					tmp := c.etf.flowField.GetVecfAt(int(pos.x), int(pos.y))
-					direction := &position{x: float64(tmp[0]), y: float64(tmp[1])}
+					direction := &position{x: float64(tmp[1]), y: float64(tmp[0])}
 
 					if direction.x == 0 && direction.y == 0 {
 						break
@@ -160,6 +165,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 
 					value := src.GetDoubleAt(int(pos.x), int(pos.y))
 					weight := gausVec[step]
+
 					gauAcc += value * weight
 					gauWeightAcc += weight
 
@@ -188,12 +194,11 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 					}
 
 					value := src.GetDoubleAt(int(pos.x), int(pos.y))
-					//fmt.Println(value)
 					weight := gausVec[step]
+
 					gauAcc += value * weight
 					gauWeightAcc += weight
 
-					//fmt.Println(gauAcc, ":", gauWeightAcc)
 					pos.x += direction.x
 					pos.y += direction.y
 
@@ -222,12 +227,12 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 		}
 	}
 	gocv.Normalize(*dst, dst, 0.0, 1.0, gocv.NormMinMax)
-	//fmt.Println(dst.ToBytes())
 	c.wg.Wait()
 }
 
-// BinaryThresholding threshold an image as black and white
+// BinaryThresholding threshold an image as black and white.
 func (c *Cld) BinaryThresholding(src, dst *gocv.Mat, tau float64) {
+	//fmt.Println(src.ToBytes())
 	for x := 0; x < src.Rows(); x++ {
 		for y := 0; y < src.Cols(); y++ {
 			c.wg.Add(1)
