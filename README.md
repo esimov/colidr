@@ -1,4 +1,4 @@
 # colidr
 Coherent Line Drawing. 
 
-Nothing to see here yet.
+**WORK IN PROGRESS...NOT WORKING YET**
