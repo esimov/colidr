@@ -18,7 +18,7 @@ func main() {
 		Tau:    0.0078,
 	}
 
-	cld, err := colidr.NewCLD("input.jpg", opts)
+	cld, err := colidr.NewCLD("waterfall.png", opts)
 	if err != nil {
 		log.Fatalf("cannot initialize CLD: %v", err)
 	}

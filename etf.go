@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"gocv.io/x/gocv"
+	"fmt"
 )
 
 type Etf struct {
@@ -28,6 +29,7 @@ func NewETF() *Etf {
 }
 
 func (etf *Etf) Init(rows, cols int) {
+	fmt.Println(rows, cols)
 	etf.flowField = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
 	etf.refinedEtf = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
 	etf.gradientMag = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
@@ -37,16 +39,17 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	etf.resizeMat(size)
 
 	// Todo check if we should use color or grayscale.
-	src := gocv.IMRead(file, gocv.IMReadGrayScale)
-	width, height := src.Cols(), src.Rows()
-	srcNew := gocv.NewMatWithSize(height, width, gocv.MatTypeCV32F)
-	gocv.Normalize(src, &srcNew, 0.0, 1.0, gocv.NormMinMax)
+	src := gocv.IMRead(file, gocv.IMReadColor)
+	gocv.Normalize(src, &src, 0.0, 1.0, gocv.NormMinMax)
 
-	gradX := gocv.NewMatWithSize(height, width, gocv.MatTypeCV32F)
-	gradY := gocv.NewMatWithSize(height, width, gocv.MatTypeCV32F)
-	gocv.Sobel(srcNew, &gradX, gocv.MatTypeCV32F, 1, 0, 5, 1, 0, gocv.BorderDefault)
-	gocv.Sobel(srcNew, &gradY, gocv.MatTypeCV32F, 0, 1, 5, 1, 0, gocv.BorderDefault)
+	gradX := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
+	fmt.Println(src.Rows(), src.Cols())
+	fmt.Println("BEFORE:", gradX.Rows(), gradX.Cols())
+	gradY := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
+	gocv.Sobel(src, &gradX, gocv.MatTypeCV32F, 1, 0, 5, 1, 0, gocv.BorderDefault)
+	gocv.Sobel(src, &gradY, gocv.MatTypeCV32F, 0, 1, 5, 1, 0, gocv.BorderDefault)
 
+	fmt.Println("AFTER:", gradX.Rows(), gradX.Cols())
 	// Compute gradient
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
 	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMinMax)
@@ -54,29 +57,29 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	data := etf.flowField.ToBytes()
 	ch := etf.flowField.Channels()
 
-	etf.wg.Add(width * height)
+	etf.wg.Add(src.Rows() * src.Cols())
 
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
-			go func(x, y int) {
-				u := gradX.GetVecfAt(x, y)
-				v := gradY.GetVecfAt(x, y)
+	for i := 0; i < src.Rows(); i++ {
+		for j := 0; j < src.Cols(); j++ {
+			go func(i, j int) {
+				u := gradX.GetVecfAt(i, j)
+				v := gradY.GetVecfAt(i, j)
 
 				// Obtain the pixel channel value from Mat image and
 				// update the flowField vector with values from sobel matrix.
-				idx := x*ch + y*height*ch
+				idx := i*ch + j*src.Rows()*ch
 
-				data[idx+0] = byte(u[0])
-				data[idx+1] = byte(v[0])
-				data[idx+2] = 0.0
+				data[idx+0] = byte(v[0])
+				data[idx+1] = byte(u[0])
+				data[idx+2] = 0
 
 				etf.wg.Done()
-			}(x, y)
+			}(i, j)
 		}
 	}
 
 	etf.wg.Wait()
-	nm, err := gocv.NewMatFromBytes(width, height, gocv.MatChannels3, data)
+	nm, err := gocv.NewMatFromBytes(src.Rows(), src.Cols(), gocv.MatChannels3, data)
 	if err != nil {
 		log.Fatalf("Cannot create new Mat from bytes: %v", err)
 	}
@@ -172,13 +175,11 @@ func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 	ch := etf.flowField.Channels()
 
 	width, height := src.Cols(), src.Rows()
+	fmt.Println(width, height)
+	for y := 0; y < height-1; y++ {
+		for x := 0; x < width; x++ {
 
-	etf.wg.Add(width * height)
-
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
-			go func(x, y int) {
-				srcVec := src.GetVecfAt(x, y)
+				srcVec := src.GetVecfAt(y, x)
 
 				// Obtain the source vector value and rotate it.
 				rx := float64(srcVec[0])*math.Cos(theta) - float64(srcVec[1])*math.Sin(theta)
@@ -186,20 +187,17 @@ func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 
 				// Obtain the pixel channel value from src Mat image and
 				// apply the rotation values to the destination matrix.
-				idx := x*ch + y*width*ch
+				idx := x*ch + y*height*ch
 
 				// Convert float64 to byte
 				data[idx+0] = byte(*(*byte)(unsafe.Pointer(&rx)))
 				data[idx+1] = byte(*(*byte)(unsafe.Pointer(&ry)))
 				data[idx+2] = 0.0
 
-				etf.wg.Done()
-			}(x, y)
 		}
 	}
-	etf.wg.Wait()
 
-	nm, err := gocv.NewMatFromBytes(width, height, gocv.MatChannels3, data)
+	nm, err := gocv.NewMatFromBytes(height, width, gocv.MatChannels3, data)
 	if err != nil {
 		log.Fatalf("Cannot create new Mat from bytes: %v", err)
 	}
