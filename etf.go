@@ -16,7 +16,7 @@ type Etf struct {
 	refinedEtf  gocv.Mat
 	gradientMag gocv.Mat
 	wg          sync.WaitGroup
-	mu          sync.Mutex
+	mu          sync.RWMutex
 }
 
 type point struct {
@@ -57,11 +57,15 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	data := etf.flowField.ToBytes()
 	ch := etf.flowField.Channels()
 
-	etf.wg.Add(src.Rows() * src.Cols())
+	width, height := src.Cols(), src.Rows()
+	etf.wg.Add(width * (height-1))
 
-	for i := 0; i < src.Rows(); i++ {
-		for j := 0; j < src.Cols(); j++ {
+	for i := 0; i < height-1; i++ {
+		for j := 0; j < width; j++ {
 			go func(i, j int) {
+				etf.mu.RLock()
+				defer etf.mu.RUnlock()
+
 				u := gradX.GetVecfAt(i, j)
 				v := gradY.GetVecfAt(i, j)
 
@@ -96,6 +100,9 @@ func (etf *Etf) RefineEtf(kernel int) {
 			etf.wg.Add(1)
 			// Spawn computation into separate goroutines
 			go func(x, y int) {
+				etf.mu.Lock()
+				defer etf.mu.Unlock()
+
 				etf.computeNewVector(y, x, kernel)
 				etf.wg.Done()
 			}(x, y)
@@ -175,11 +182,15 @@ func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 	ch := etf.flowField.Channels()
 
 	width, height := src.Cols(), src.Rows()
-	fmt.Println(width, height)
+	fmt.Println(src.Rows(), src.Cols())
+	fmt.Println("CHANNEL:", ch)
+	fmt.Println(src.Total())
 	for y := 0; y < height-1; y++ {
 		for x := 0; x < width; x++ {
-
+			//fmt.Println(y, x)
+				etf.mu.RLock()
 				srcVec := src.GetVecfAt(y, x)
+				etf.mu.RUnlock()
 
 				// Obtain the source vector value and rotate it.
 				rx := float64(srcVec[0])*math.Cos(theta) - float64(srcVec[1])*math.Sin(theta)
