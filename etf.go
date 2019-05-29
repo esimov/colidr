@@ -1,6 +1,7 @@
 package colidr
 
 import (
+	"fmt"
 	"image"
 	"log"
 	"math"
@@ -8,7 +9,6 @@ import (
 	"unsafe"
 
 	"gocv.io/x/gocv"
-	"fmt"
 )
 
 type Etf struct {
@@ -36,11 +36,11 @@ func (etf *Etf) Init(rows, cols int) {
 }
 
 func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
-	etf.resizeMat(size)
+	//etf.resizeMat(size)
 
-	// Todo check if we should use color or grayscale.
 	src := gocv.IMRead(file, gocv.IMReadColor)
 	gocv.Normalize(src, &src, 0.0, 1.0, gocv.NormMinMax)
+	//gocv.GaussianBlur(src, &src, image.Pt(25, 25), 0, 0, gocv.BorderDefault)
 
 	gradX := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
 	fmt.Println(src.Rows(), src.Cols())
@@ -48,8 +48,8 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	gradY := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
 	gocv.Sobel(src, &gradX, gocv.MatTypeCV32F, 1, 0, 5, 1, 0, gocv.BorderDefault)
 	gocv.Sobel(src, &gradY, gocv.MatTypeCV32F, 0, 1, 5, 1, 0, gocv.BorderDefault)
-
 	fmt.Println("AFTER:", gradX.Rows(), gradX.Cols())
+
 	// Compute gradient
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
 	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMinMax)
@@ -58,27 +58,27 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	ch := etf.flowField.Channels()
 
 	width, height := src.Cols(), src.Rows()
-	etf.wg.Add(width * (height-1))
+	etf.wg.Add(width * height)
 
-	for i := 0; i < height-1; i++ {
-		for j := 0; j < width; j++ {
-			go func(i, j int) {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			go func(y, x int) {
 				etf.mu.RLock()
 				defer etf.mu.RUnlock()
 
-				u := gradX.GetVecfAt(i, j)
-				v := gradY.GetVecfAt(i, j)
+				u := gradX.GetVecfAt(y, x)
+				v := gradY.GetVecfAt(y, x)
 
 				// Obtain the pixel channel value from Mat image and
 				// update the flowField vector with values from sobel matrix.
-				idx := i*ch + j*src.Rows()*ch
+				idx := y*ch + x*height*ch
 
 				data[idx+0] = byte(v[0])
 				data[idx+1] = byte(u[0])
 				data[idx+2] = 0
 
 				etf.wg.Done()
-			}(i, j)
+			}(y, x)
 		}
 	}
 
@@ -110,6 +110,12 @@ func (etf *Etf) RefineEtf(kernel int) {
 	}
 	etf.wg.Wait()
 	etf.flowField = etf.refinedEtf
+}
+
+func (etf *Etf) resizeMat(size image.Point) {
+	gocv.Resize(etf.flowField, &etf.flowField, size, 0, 0, gocv.InterpolationDefault)
+	gocv.Resize(etf.refinedEtf, &etf.refinedEtf, size, 0, 0, gocv.InterpolationDefault)
+	gocv.Resize(etf.gradientMag, &etf.gradientMag, size, 0, 0, gocv.InterpolationDefault)
 }
 
 func (etf *Etf) computeNewVector(x, y int, kernel int) {
@@ -170,27 +176,21 @@ func (etf *Etf) computeWeightDirection(x, y gocv.Vecf) float32 {
 	return float32(math.Abs(float64(s)))
 }
 
-func (etf *Etf) resizeMat(size image.Point) {
-	gocv.Resize(etf.flowField, &etf.flowField, size, 0, 0, gocv.InterpolationDefault)
-	gocv.Resize(etf.refinedEtf, &etf.refinedEtf, size, 0, 0, gocv.InterpolationDefault)
-	gocv.Resize(etf.gradientMag, &etf.gradientMag, size, 0, 0, gocv.InterpolationDefault)
-}
-
 func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 	theta = theta / 180.0 * math.Pi
 	data := src.ToBytes()
 	ch := etf.flowField.Channels()
 
 	width, height := src.Cols(), src.Rows()
-	fmt.Println(src.Rows(), src.Cols())
-	fmt.Println("CHANNEL:", ch)
-	fmt.Println(src.Total())
+	etf.wg.Add(width * (height-1))
+
 	for y := 0; y < height-1; y++ {
 		for x := 0; x < width; x++ {
-			//fmt.Println(y, x)
+			go func(y, x int) {
 				etf.mu.RLock()
+				defer etf.mu.RUnlock()
+
 				srcVec := src.GetVecfAt(y, x)
-				etf.mu.RUnlock()
 
 				// Obtain the source vector value and rotate it.
 				rx := float64(srcVec[0])*math.Cos(theta) - float64(srcVec[1])*math.Sin(theta)
@@ -198,15 +198,18 @@ func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 
 				// Obtain the pixel channel value from src Mat image and
 				// apply the rotation values to the destination matrix.
-				idx := x*ch + y*height*ch
+				idx := y*ch + x*height*ch
 
 				// Convert float64 to byte
 				data[idx+0] = byte(*(*byte)(unsafe.Pointer(&rx)))
 				data[idx+1] = byte(*(*byte)(unsafe.Pointer(&ry)))
 				data[idx+2] = 0.0
 
+				etf.wg.Done()
+			}(y, x)
 		}
 	}
+	etf.wg.Wait()
 
 	nm, err := gocv.NewMatFromBytes(height, width, gocv.MatChannels3, data)
 	if err != nil {

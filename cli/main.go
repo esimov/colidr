@@ -13,12 +13,12 @@ func main() {
 	opts := colidr.Options{
 		SigmaR: 1.6,
 		SigmaM: 4.55,
-		SigmaC: 1.8112,
+		SigmaC: 1.6112,
 		Rho:    1.997,
-		Tau:    0.000781,
+		Tau:    0.001281,
 	}
 
-	cld, err := colidr.NewCLD("me.jpeg", opts)
+	cld, err := colidr.NewCLD("waterfall.png", opts)
 	if err != nil {
 		log.Fatalf("cannot initialize CLD: %v", err)
 	}

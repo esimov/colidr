@@ -103,8 +103,8 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 						continue
 					}
 					val := src.GetFloatAt(int(math.Round(row)), int(math.Round(col)))
-					gauIdx := abs(step)
 
+					gauIdx := abs(step)
 					gauCWeight := func(gauIdx int) float64 {
 						if gauIdx >= len(gvc) {
 							return 0.0
@@ -130,7 +130,7 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 		}
 	}
 	c.wg.Wait()
-	fmt.Println(dst.ToBytes())
+	//fmt.Println(dst.ToBytes())
 }
 
 func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
@@ -235,7 +235,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 	}
 	fmt.Println("FINAL:", dst.Rows(), dst.Cols())
 	gocv.Normalize(*dst, dst, 0.0, 1.0, gocv.NormMinMax)
-	fmt.Println(dst.ToBytes())
+	//fmt.Println(dst.ToBytes())
 
 	c.wg.Wait()
 }
@@ -243,19 +243,18 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 // BinaryThreshold threshold an image as black and white.
 func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float64) []byte {
 	width, height := dst.Cols(), dst.Rows()
-	c.wg.Add(width * (height-1))
+	c.wg.Add(width * height)
 
 	fmt.Println(src.Rows(), src.Cols())
 	fmt.Println(dst.Rows(), dst.Cols())
-	fmt.Println(width, height)
-	for y := 0; y < height-1; y++ {
+
+	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			go func(y, x int) {
 				c.etf.mu.Lock()
 				defer c.etf.mu.Unlock()
 
 				h := src.GetDoubleAt(y, x)
-				//fmt.Println(h)
 				v := func(h float64) uint8 {
 					if h < tau {
 						return 255
@@ -271,7 +270,7 @@ func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float64) []byte {
 	c.wg.Wait()
 
 	fmt.Println("====================================================================")
-	fmt.Println(dst.ToBytes())
+	//fmt.Println(dst.ToBytes())
 	return dst.ToBytes()
 }
 
