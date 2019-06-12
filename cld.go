@@ -124,7 +124,7 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 				vs := gauSAcc / gauSWeightAcc
 
 				res := vc - rho*vs
-				dst.SetDoubleAt(y, x, res)
+				dst.SetFloatAt(y, x, float32(res))
 
 				c.wg.Done()
 			}(y, x)
@@ -153,7 +153,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 				c.etf.mu.Lock()
 				defer c.etf.mu.Unlock()
 
-				gauAcc = -gausVec[0] * src.GetDoubleAt(y, x)
+				gauAcc = -gausVec[0] * float64(src.GetFloatAt(y, x))
 				gauWeightAcc = -gausVec[0]
 
 				// Integral alone ETF
@@ -171,10 +171,10 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 						break
 					}
 
-					value := src.GetDoubleAt(int(pos.y), int(pos.x))
+					value := src.GetFloatAt(int(pos.y), int(pos.x))
 					weight := gausVec[step]
 
-					gauAcc += value * weight
+					gauAcc += float64(value) * weight
 					gauWeightAcc += weight
 
 					pos.x += direction.x
@@ -201,10 +201,10 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 						break
 					}
 
-					value := src.GetDoubleAt(int(pos.y), int(pos.x))
+					value := src.GetFloatAt(int(pos.y), int(pos.x))
 					weight := gausVec[step]
 
-					gauAcc += value * weight
+					gauAcc += float64(value) * weight
 					gauWeightAcc += weight
 
 					pos.x += direction.x
