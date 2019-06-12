@@ -12,12 +12,12 @@ import (
 )
 
 type Cld struct {
-	srcImage gocv.Mat
-	result   gocv.Mat
-	dog      gocv.Mat
-	fDog     gocv.Mat
-	etf      *Etf
-	wg       sync.WaitGroup
+	Image  gocv.Mat
+	result gocv.Mat
+	dog    gocv.Mat
+	fDog   gocv.Mat
+	etf    *Etf
+	wg     sync.WaitGroup
 	Options
 }
 
@@ -26,7 +26,7 @@ type Options struct {
 	SigmaM float64
 	SigmaC float64
 	Rho    float64
-	Tau    float64
+	Tau    float32
 }
 
 type position struct {
@@ -59,14 +59,15 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	}, nil
 }
 
-func (c *Cld) GenerateCld() (int, int, []byte) {
-	srcImg32FC1 := gocv.NewMatWithSize(c.srcImage.Rows(), c.srcImage.Cols(), gocv.MatTypeCV32F)
-	c.srcImage.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
+func (c *Cld) GenerateCld() []byte {
+	srcImg32FC1 := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
+	c.Image.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
 
 	c.GradientDoG(&srcImg32FC1, &c.dog, c.Rho, c.SigmaC)
 	c.FlowDoG(&c.dog, &c.fDog, c.SigmaM)
+	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
 
-	return c.srcImage.Rows(), c.srcImage.Cols(), c.binaryThreshold(&c.fDog, &c.result, c.Tau)
+	return c.result.ToBytes()
 }
 
 func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
@@ -241,7 +242,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 }
 
 // BinaryThreshold threshold an image as black and white.
-func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float64) []byte {
+func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 	width, height := dst.Cols(), dst.Rows()
 	c.wg.Add(width * height)
 
@@ -254,8 +255,8 @@ func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float64) []byte {
 				c.etf.mu.Lock()
 				defer c.etf.mu.Unlock()
 
-				h := src.GetDoubleAt(y, x)
-				v := func(h float64) uint8 {
+				h := src.GetFloatAt(y, x)
+				v := func(h float32) uint8 {
 					if h < tau {
 						return 255
 					}
@@ -275,8 +276,8 @@ func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float64) []byte {
 }
 
 func (c *Cld) CombineImage() {
-	for x := 0; x < c.srcImage.Rows(); x++ {
-		for y := 0; y < c.srcImage.Cols(); y++ {
+	for x := 0; x < c.Image.Rows(); x++ {
+		for y := 0; y < c.Image.Cols(); y++ {
 			c.wg.Add(1)
 			go func(x, y int) {
 				c.etf.mu.Lock()
@@ -284,7 +285,7 @@ func (c *Cld) CombineImage() {
 
 				h := c.result.GetUCharAt(x, y)
 				if h == 0 {
-					c.srcImage.SetUCharAt(x, y, h)
+					c.Image.SetUCharAt(x, y, h)
 				}
 				c.wg.Done()
 			}(x, y)
@@ -292,7 +293,7 @@ func (c *Cld) CombineImage() {
 	}
 
 	// Blur the image a little bit
-	gocv.GaussianBlur(c.srcImage, &c.srcImage, image.Point{3, 3}, 0.0, 0.0, gocv.BorderDefault)
+	gocv.GaussianBlur(c.Image, &c.Image, image.Point{3, 3}, 0.0, 0.0, gocv.BorderDefault)
 	c.wg.Wait()
 }
 

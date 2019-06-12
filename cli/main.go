@@ -15,17 +15,18 @@ func main() {
 		SigmaM: 4.55,
 		SigmaC: 1.6112,
 		Rho:    1.997,
-		Tau:    0.001281,
+		Tau:    0.58,
 	}
 
-	cld, err := colidr.NewCLD("waterfall.png", opts)
+	cld, err := colidr.NewCLD("lena.jpg", opts)
 	if err != nil {
 		log.Fatalf("cannot initialize CLD: %v", err)
 	}
 
-	width, height, data := cld.GenerateCld()
+	data := cld.GenerateCld()
 
-	mat, err := gocv.NewMatFromBytes(width, height, gocv.MatTypeCV8UC1, data)
+	rows, cols := cld.Image.Rows(), cld.Image.Cols()
+	mat, err := gocv.NewMatFromBytes(rows, cols, gocv.MatTypeCV8UC1, data)
 	if err != nil {
 		log.Fatalf("error retrieving the byte array: %v", err)
 	}
