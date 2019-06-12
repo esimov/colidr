@@ -76,9 +76,6 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	gvs := makeGaussianVector(sigmaS)
 	kernel := len(gvs) - 1
 
-	fmt.Println(dst.Rows(), dst.Cols())
-	fmt.Println(c.etf.flowField.Rows(), c.etf.flowField.Cols())
-
 	width, height := dst.Cols(), dst.Rows()
 	c.wg.Add(width * (height-1))
 
@@ -131,7 +128,6 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 		}
 	}
 	c.wg.Wait()
-	//fmt.Println(dst.ToBytes())
 }
 
 func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
@@ -144,7 +140,6 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 	width, height := src.Cols(), src.Rows()
 	kernelHalf := len(gausVec) - 1
 
-	fmt.Println(src.Rows(), src.Cols())
 	c.wg.Add(width * (height-1))
 
 	for y := 0; y < height-1; y++ {
@@ -234,9 +229,7 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 			}(y, x)
 		}
 	}
-	fmt.Println("FINAL:", dst.Rows(), dst.Cols())
 	gocv.Normalize(*dst, dst, 0.0, 1.0, gocv.NormMinMax)
-	//fmt.Println(dst.ToBytes())
 
 	c.wg.Wait()
 }
@@ -245,9 +238,6 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 	width, height := dst.Cols(), dst.Rows()
 	c.wg.Add(width * height)
-
-	fmt.Println(src.Rows(), src.Cols())
-	fmt.Println(dst.Rows(), dst.Cols())
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -270,8 +260,6 @@ func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 	}
 	c.wg.Wait()
 
-	fmt.Println("====================================================================")
-	//fmt.Println(dst.ToBytes())
 	return dst.ToBytes()
 }
 

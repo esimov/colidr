@@ -1,7 +1,6 @@
 package colidr
 
 import (
-	"fmt"
 	"image"
 	"log"
 	"math"
@@ -29,26 +28,23 @@ func NewETF() *Etf {
 }
 
 func (etf *Etf) Init(rows, cols int) {
-	fmt.Println(rows, cols)
 	etf.flowField = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
 	etf.refinedEtf = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
 	etf.gradientMag = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
 }
 
 func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
-	//etf.resizeMat(size)
+	etf.resizeMat(size)
 
 	src := gocv.IMRead(file, gocv.IMReadColor)
 	gocv.Normalize(src, &src, 0.0, 1.0, gocv.NormMinMax)
 	//gocv.GaussianBlur(src, &src, image.Pt(25, 25), 0, 0, gocv.BorderDefault)
 
 	gradX := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
-	fmt.Println(src.Rows(), src.Cols())
-	fmt.Println("BEFORE:", gradX.Rows(), gradX.Cols())
 	gradY := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
+
 	gocv.Sobel(src, &gradX, gocv.MatTypeCV32F, 1, 0, 5, 1, 0, gocv.BorderDefault)
 	gocv.Sobel(src, &gradY, gocv.MatTypeCV32F, 0, 1, 5, 1, 0, gocv.BorderDefault)
-	fmt.Println("AFTER:", gradX.Rows(), gradX.Cols())
 
 	// Compute gradient
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
