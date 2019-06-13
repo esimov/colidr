@@ -11,10 +11,13 @@ import (
 
 type PostProcessing struct {
 	Etf
+	blurSize int
 }
 
-func NewPP() *PostProcessing {
-	return &PostProcessing{}
+func NewPostProcessing(blurSize int) *PostProcessing {
+	return &PostProcessing{
+		blurSize: blurSize,
+	}
 }
 
 func (pp *PostProcessing) VisualizeEtf(dis gocv.Mat) *gocv.Mat {
@@ -132,9 +135,7 @@ func (pp *PostProcessing) FlowField(dis *gocv.Mat) {
 	}
 }
 
-func (pp *PostProcessing) AntiAlias(src gocv.Mat, dst gocv.Mat) {
-	var blurSize = 3
-
-	gocv.Normalize(src, &dst, 60.0, 255.0, gocv.NormMinMax)
-	gocv.GaussianBlur(dst, &dst, image.Point{blurSize, blurSize}, 0.0, 0.0, gocv.BorderDefault)
+func (pp *PostProcessing) AntiAlias(src, dst gocv.Mat) {
+	gocv.Normalize(src, &dst, 0.0, 255.0, gocv.NormMinMax)
+	gocv.GaussianBlur(dst, &dst, image.Point{pp.blurSize, pp.blurSize}, 0.0, 0.0, gocv.BorderConstant)
 }

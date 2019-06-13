@@ -22,11 +22,13 @@ type Cld struct {
 }
 
 type Options struct {
-	SigmaR float64
-	SigmaM float64
-	SigmaC float64
-	Rho    float64
-	Tau    float32
+	SigmaR    float64
+	SigmaM    float64
+	SigmaC    float64
+	Rho       float64
+	Tau       float32
+	BlurSize  int
+	AntiAlias bool
 }
 
 type position struct {
@@ -67,6 +69,16 @@ func (c *Cld) GenerateCld() []byte {
 	c.FlowDoG(&c.dog, &c.fDog, c.SigmaM)
 	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
 
+	if c.Options.AntiAlias {
+		blurSize := c.Options.BlurSize
+
+		dis := c.result.Clone()
+		pp := NewPostProcessing(blurSize)
+		pp.AntiAlias(dis, dis)
+
+		return dis.ToBytes()
+	}
+
 	return c.result.ToBytes()
 }
 
@@ -77,9 +89,9 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	kernel := len(gvs) - 1
 
 	width, height := dst.Cols(), dst.Rows()
-	c.wg.Add(width * (height-1))
+	c.wg.Add(width * height)
 
-	for y := 0; y < height-1; y++ {
+	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			go func(y, x int) {
 				var (
@@ -140,9 +152,9 @@ func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
 	width, height := src.Cols(), src.Rows()
 	kernelHalf := len(gausVec) - 1
 
-	c.wg.Add(width * (height-1))
+	c.wg.Add(width * height)
 
-	for y := 0; y < height-1; y++ {
+	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			go func(y, x int) {
 				c.etf.mu.Lock()

@@ -1,21 +1,23 @@
 package main
 
 import (
+	"image/png"
 	"log"
+	"os"
 
 	"github.com/esimov/colidr"
-	"os"
-	"image/png"
 	"gocv.io/x/gocv"
 )
 
 func main() {
 	opts := colidr.Options{
-		SigmaR: 1.6,
-		SigmaM: 4.55,
-		SigmaC: 1.6112,
-		Rho:    1.997,
-		Tau:    0.58,
+		SigmaR:    1.6,
+		SigmaM:    4.55,
+		SigmaC:    1.612,
+		Rho:       1.994,
+		Tau:       0.58,
+		BlurSize:  3,
+		AntiAlias: true,
 	}
 
 	cld, err := colidr.NewCLD("lena.jpg", opts)

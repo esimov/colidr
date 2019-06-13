@@ -38,7 +38,6 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 
 	src := gocv.IMRead(file, gocv.IMReadColor)
 	gocv.Normalize(src, &src, 0.0, 1.0, gocv.NormMinMax)
-	//gocv.GaussianBlur(src, &src, image.Pt(25, 25), 0, 0, gocv.BorderDefault)
 
 	gradX := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
 	gradY := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
@@ -178,9 +177,9 @@ func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 	ch := etf.flowField.Channels()
 
 	width, height := src.Cols(), src.Rows()
-	etf.wg.Add(width * (height-1))
+	etf.wg.Add(width * height)
 
-	for y := 0; y < height-1; y++ {
+	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			go func(y, x int) {
 				etf.mu.RLock()
