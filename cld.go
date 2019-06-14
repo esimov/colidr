@@ -56,6 +56,7 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to initialize edge tangent flow: %s\n", err))
 	}
+
 	return &Cld{
 		srcImage, result, dog, fDog, etf, wg, cldOpts,
 	}, nil

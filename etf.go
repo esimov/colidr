@@ -90,15 +90,15 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 }
 
 func (etf *Etf) RefineEtf(kernel int) {
-	for x := 0; x < etf.flowField.Rows(); x++ {
-		for y := 0; y < etf.flowField.Cols(); y++ {
+	for y := 0; y < etf.flowField.Rows(); y++ {
+		for x := 0; x < etf.flowField.Cols(); x++ {
 			etf.wg.Add(1)
 			// Spawn computation into separate goroutines
 			go func(x, y int) {
 				etf.mu.Lock()
 				defer etf.mu.Unlock()
 
-				etf.computeNewVector(y, x, kernel)
+				etf.computeNewVector(x, y, kernel)
 				etf.wg.Done()
 			}(x, y)
 		}

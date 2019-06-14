@@ -1,26 +1,71 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"image/png"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/esimov/colidr"
 	"gocv.io/x/gocv"
 )
 
+const banner = `
+┌─┐┌─┐┬  ┬┌┬┐┬─┐
+│  │ ││  │ ││├┬┘
+└─┘└─┘┴─┘┴─┴┘┴└─
+
+Coherent Line Drawing CLI
+    Version: %s
+
+`
+
+// Version indicates the current build version.
+var Version string
+
 func main() {
-	opts := colidr.Options{
-		SigmaR:    1.6,
-		SigmaM:    4.55,
-		SigmaC:    1.612,
-		Rho:       1.994,
-		Tau:       0.58,
-		BlurSize:  3,
-		AntiAlias: true,
+	var (
+		source      = flag.String("in", "", "Source image")
+		destination = flag.String("out", "", "Destination image")
+		sigmaR      = flag.Float64("r", 1.6, "SigmaR")
+		sigmaM      = flag.Float64("m", 4.55, "SigmaM")
+		sigmaC      = flag.Float64("c", 1.612, "SigmaC")
+		rho         = flag.Float64("rho", 1.994, "Rho")
+		tau         = flag.Float64("tau", 0.58, "Tau")
+		blurSize    = flag.Int("blur", 3, "Blur size")
+		antiAlias   = flag.Bool("aa", false, "Anti aliasing")
+	)
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, fmt.Sprintf(banner, Version))
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+
+	if len(*source) == 0 || len(*destination) == 0 {
+		log.Fatal("Usage: colidr -in <source> -out <destination>")
 	}
 
-	cld, err := colidr.NewCLD("lena.jpg", opts)
+	fileTypes := []string{".jpg", ".jpeg", ".png"}
+	ext := filepath.Ext(*destination)
+
+	if !supportedFiles(ext, fileTypes) {
+		log.Fatalf("Output file type not supported: %v", ext)
+	}
+
+	opts := colidr.Options{
+		SigmaR:    *sigmaR,
+		SigmaM:    *sigmaM,
+		SigmaC:    *sigmaC,
+		Rho:       *rho,
+		Tau:       float32(*tau),
+		BlurSize:  *blurSize,
+		AntiAlias: *antiAlias,
+	}
+
+	cld, err := colidr.NewCLD(*source, opts)
 	if err != nil {
 		log.Fatalf("cannot initialize CLD: %v", err)
 	}
@@ -39,10 +84,20 @@ func main() {
 	}
 
 	//save the imgByte to file
-	out, err := os.Create("output.png")
+	out, err := os.Create(*destination)
 	if err != nil {
 		log.Fatalf("error saving the image: %v", err)
 	}
 
 	err = png.Encode(out, img)
+}
+
+// supportedFiles checks if the provided file extension is supported.
+func supportedFiles(ext string, types []string) bool {
+	for _, t := range types {
+		if t == ext {
+			return true
+		}
+	}
+	return false
 }
