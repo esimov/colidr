@@ -10,6 +10,7 @@ import (
 
 	"github.com/esimov/colidr"
 	"gocv.io/x/gocv"
+	"time"
 )
 
 const banner = `
@@ -70,6 +71,25 @@ func main() {
 		log.Fatalf("cannot initialize CLD: %v", err)
 	}
 
+	fmt.Print("Generating")
+	
+	start := time.Now()
+	done := make(chan struct{})
+
+	ticker := time.NewTicker(time.Millisecond * 100)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				fmt.Print(".")
+			case <-done:
+				ticker.Stop()
+				end := time.Now().Sub(start)
+				fmt.Printf("\nDone in: %.2fs\n", end.Seconds())
+			}
+		}
+	}()
+
 	data := cld.GenerateCld()
 
 	rows, cols := cld.Image.Rows(), cld.Image.Cols()
@@ -90,6 +110,9 @@ func main() {
 	}
 
 	err = png.Encode(out, img)
+	done <- struct{}{}
+
+	time.Sleep(time.Second)
 }
 
 // supportedFiles checks if the provided file extension is supported.

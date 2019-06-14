@@ -84,7 +84,7 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	}
 
 	gocv.Normalize(nm, &etf.flowField, 0.0, 1.0, gocv.NormMinMax)
-	etf.rotateFlow(&etf.flowField, 90)
+	//etf.rotateFlow(&etf.flowField, 90)
 
 	return nil
 }
