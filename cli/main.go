@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/esimov/colidr"
 	"gocv.io/x/gocv"
-	"time"
 )
 
 const banner = `
@@ -28,15 +28,16 @@ var Version string
 
 func main() {
 	var (
-		source      = flag.String("in", "", "Source image")
-		destination = flag.String("out", "", "Destination image")
-		sigmaR      = flag.Float64("r", 1.6, "SigmaR")
-		sigmaM      = flag.Float64("m", 4.55, "SigmaM")
-		sigmaC      = flag.Float64("c", 1.612, "SigmaC")
-		rho         = flag.Float64("rho", 1.994, "Rho")
-		tau         = flag.Float64("tau", 0.58, "Tau")
-		blurSize    = flag.Int("blur", 3, "Blur size")
-		antiAlias   = flag.Bool("aa", false, "Anti aliasing")
+		source        = flag.String("in", "", "Source image")
+		destination   = flag.String("out", "", "Destination image")
+		sigmaR        = flag.Float64("r", 1.6, "SigmaR")
+		sigmaM        = flag.Float64("m", 4.55, "SigmaM")
+		sigmaC        = flag.Float64("c", 1.612, "SigmaC")
+		rho           = flag.Float64("rho", 1.994, "Rho")
+		tau           = flag.Float64("tau", 0.58, "Tau")
+		blurSize      = flag.Int("blur", 3, "Blur size")
+		antiAlias     = flag.Bool("aa", false, "Anti aliasing")
+		fDogIteration = flag.Int("it", 0, "Number of FDoG iteration")
 	)
 
 	flag.Usage = func() {
@@ -57,22 +58,18 @@ func main() {
 	}
 
 	opts := colidr.Options{
-		SigmaR:    *sigmaR,
-		SigmaM:    *sigmaM,
-		SigmaC:    *sigmaC,
-		Rho:       *rho,
-		Tau:       float32(*tau),
-		BlurSize:  *blurSize,
-		AntiAlias: *antiAlias,
-	}
-
-	cld, err := colidr.NewCLD(*source, opts)
-	if err != nil {
-		log.Fatalf("cannot initialize CLD: %v", err)
+		SigmaR:        *sigmaR,
+		SigmaM:        *sigmaM,
+		SigmaC:        *sigmaC,
+		Rho:           *rho,
+		Tau:           float32(*tau),
+		BlurSize:      *blurSize,
+		AntiAlias:     *antiAlias,
+		FDogIteration: *fDogIteration,
 	}
 
 	fmt.Print("Generating")
-	
+
 	start := time.Now()
 	done := make(chan struct{})
 
@@ -89,6 +86,11 @@ func main() {
 			}
 		}
 	}()
+
+	cld, err := colidr.NewCLD(*source, opts)
+	if err != nil {
+		log.Fatalf("cannot initialize CLD: %v", err)
+	}
 
 	data := cld.GenerateCld()
 

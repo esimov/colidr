@@ -22,13 +22,14 @@ type Cld struct {
 }
 
 type Options struct {
-	SigmaR    float64
-	SigmaM    float64
-	SigmaC    float64
-	Rho       float64
-	Tau       float32
-	BlurSize  int
-	AntiAlias bool
+	SigmaR        float64
+	SigmaM        float64
+	SigmaC        float64
+	Rho           float64
+	Tau           float32
+	BlurSize      int
+	AntiAlias     bool
+	FDogIteration int
 }
 
 type position struct {
@@ -63,27 +64,18 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 }
 
 func (c *Cld) GenerateCld() []byte {
-	srcImg32FC1 := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
-	c.Image.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
+	c.generate()
 
-	c.GradientDoG(&srcImg32FC1, &c.dog, c.Rho, c.SigmaC)
-	c.FlowDoG(&c.dog, &c.fDog, c.SigmaM)
-	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
-
-	if c.Options.AntiAlias {
-		blurSize := c.Options.BlurSize
-
-		dis := c.result.Clone()
-		pp := NewPostProcessing(blurSize)
-		pp.AntiAlias(dis, dis)
-
-		return dis.ToBytes()
+	if c.FDogIteration > 0 {
+		for i := 0; i < c.FDogIteration; i++ {
+			c.CombineImage()
+			c.generate()
+		}
 	}
-
 	return c.result.ToBytes()
 }
 
-func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
+func (c *Cld) gradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	var sigmaS = c.SigmaR * sigmaC
 	gvc := makeGaussianVector(sigmaC)
 	gvs := makeGaussianVector(sigmaS)
@@ -143,7 +135,7 @@ func (c *Cld) GradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	c.wg.Wait()
 }
 
-func (c *Cld) FlowDoG(src, dst *gocv.Mat, sigma float64) {
+func (c *Cld) flowDoG(src, dst *gocv.Mat, sigma float64) {
 	var (
 		gauAcc       float64
 		gauWeightAcc float64
@@ -277,25 +269,39 @@ func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 }
 
 func (c *Cld) CombineImage() {
-	for x := 0; x < c.Image.Rows(); x++ {
-		for y := 0; y < c.Image.Cols(); y++ {
+	for y := 0; y < c.Image.Rows(); y++ {
+		for x := 0; x < c.Image.Cols(); x++ {
 			c.wg.Add(1)
-			go func(x, y int) {
+			go func(y, x int) {
 				c.etf.mu.Lock()
 				defer c.etf.mu.Unlock()
 
-				h := c.result.GetUCharAt(x, y)
+				h := c.result.GetUCharAt(y, x)
 				if h == 0 {
-					c.Image.SetUCharAt(x, y, h)
+					c.Image.SetUCharAt(y, x, 0)
 				}
 				c.wg.Done()
-			}(x, y)
+			}(y, x)
 		}
 	}
 
-	// Blur the image a little bit
-	gocv.GaussianBlur(c.Image, &c.Image, image.Point{3, 3}, 0.0, 0.0, gocv.BorderDefault)
+	// Apply a gaussian blur to let it more smooth
+	gocv.GaussianBlur(c.Image, &c.Image, image.Point{c.BlurSize, c.BlurSize}, 0.0, 0.0, gocv.BorderConstant)
 	c.wg.Wait()
+}
+
+func (c *Cld) generate() {
+	srcImg32FC1 := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
+	c.Image.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
+
+	c.gradientDoG(&srcImg32FC1, &c.dog, c.Rho, c.SigmaC)
+	c.flowDoG(&c.dog, &c.fDog, c.SigmaM)
+	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
+
+	if c.Options.AntiAlias {
+		pp := NewPostProcessing(c.BlurSize)
+		pp.AntiAlias(c.result, c.result)
+	}
 }
 
 // gauss computes gaussian function of variance
