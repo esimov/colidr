@@ -20,24 +20,22 @@ func NewPostProcessing(blurSize int) *PostProcessing {
 	}
 }
 
-func (pp *PostProcessing) VisualizeEtf(dis gocv.Mat) *gocv.Mat {
-	noise := gocv.NewMatWithSize(pp.flowField.Rows()/2, pp.flowField.Cols()/2, gocv.MatTypeCV32F)
-	dst := gocv.NewMatWithSize(pp.flowField.Rows(), pp.flowField.Cols(), gocv.MatTypeCV32F)
+func (pp *PostProcessing) VisualizeEtf(flowField, dst *gocv.Mat) {
+	noise := gocv.NewMatWithSize(flowField.Cols()/2, flowField.Rows()/2, gocv.MatTypeCV32F)
 
-	dis.CopyTo(&dst)
 	gocv.Randu(&noise, 0, 1.0)
 	gocv.Resize(noise, &noise, image.Point{noise.Rows(), noise.Cols()}, 0, 0, gocv.InterpolationNearestNeighbor)
 
-	s := 10
-	nRows := noise.Rows()
-	nCols := noise.Cols()
+	s := 5
+	rows := noise.Cols()
+	cols := noise.Rows()
 	sigma := 2 * s * s
 
 	var wg sync.WaitGroup
+	wg.Add(rows * cols)
 
-	for i := 0; i < nRows; i++ {
-		for j := 0; j < nCols; j++ {
-			wg.Add(1)
+	for i := 0; i < rows; i++ {
+		for j := 0; j < cols; j++ {
 			go func(i, j int) {
 				defer wg.Done()
 				wSum := 0.0
@@ -45,30 +43,30 @@ func (pp *PostProcessing) VisualizeEtf(dis gocv.Mat) *gocv.Mat {
 				y := j
 
 				for k := 0; k < s; k++ {
-					ffv := pp.flowField.GetFloatAt((x+nRows)%nRows, (y+nCols)%nCols)
-					ffm := gocv.NewMatWithSizeFromScalar(
-						gocv.Scalar{Val1: float64(ffv), Val2: float64(ffv), Val3: float64(ffv), Val4: float64(ffv)},
-						pp.flowField.Rows(),
-						pp.flowField.Cols(),
-						gocv.MatTypeCV32F,
-					)
-					gocv.Normalize(ffm, &ffm, 0.0, 1.0, gocv.NormMinMax)
-
-					v := ffm.GetVecfAt((x+nRows)%nRows, (y+nCols)%nCols)
+					gocv.Normalize(*flowField, flowField, 0.0, 1.0, gocv.NormMinMax)
+					v := flowField.GetVecfAt((x+rows)%rows, (y+cols)%cols)
 					if v[0] != 0 {
-						x = x + (abs(int(v[0]))/abs(int(v[0]))+abs(int(v[1])))*(abs(int(v[0]))/abs(int(v[0])))
+						v0a := math.Abs(float64(v[0]))
+						v1a := math.Abs(float64(v[1]))
+						xt := float64(x) + (v0a/v0a+v1a)*(v0a/v0a)
+						x = int(xt)
 					}
 					if v[1] != 0 {
-						y = y + (abs(int(v[1]))/abs(int(v[0]))+abs(int(v[1])))*(abs(int(v[1]))/abs(int(v[1])))
+						v0a := math.Abs(float64(v[0]))
+						v1a := math.Abs(float64(v[1]))
+						yt := float64(y) + (v1a/v0a+v1a)*(v1a/v1a)
+						y = int(yt)
 					}
 					r2 := float64(k * k)
 					w := (1.0 / (math.Pi * float64(sigma))) * math.Exp(-(r2)/float64(sigma))
-					xx := (int(x) + nRows) % nRows
-					yy := (int(y) + nCols) % nCols
+
+					xx := (x + rows) % rows
+					yy := (y + cols) % cols
 
 					dstAt := dst.GetFloatAt(i, j)
 					noiseAt := noise.GetFloatAt(xx, yy)
 					newVal := float64(dstAt) + (w * float64(noiseAt))
+
 					dst.SetFloatAt(i, j, float32(newVal))
 
 					wSum += w
@@ -77,22 +75,29 @@ func (pp *PostProcessing) VisualizeEtf(dis gocv.Mat) *gocv.Mat {
 				y = j
 
 				for k := 0; k < s; k++ {
-					ffv := pp.flowField.GetFloatAt((x+nRows)%nRows, (y+nCols)%nCols)
-					ffm := gocv.NewMatFromScalar(gocv.Scalar{Val1: float64(ffv), Val2: float64(ffv), Val3: float64(ffv), Val4: float64(ffv)}, gocv.MatTypeCV32F)
-					gocv.Normalize(ffm, &ffm, 0.0, 1.0, gocv.NormMinMax)
+					gocv.Normalize(*flowField, flowField, 0.0, 1.0, gocv.NormMinMax)
+					v := flowField.GetVecfAt((x+rows)%rows, (y+cols)%cols)
 
-					v := ffm.GetVecfAt((x+nRows)%nRows, (y+nCols)%nCols)
-					if v[0] != 0 {
-						x = x + (abs(int(v[0]))/abs(int(v[0]))+abs(int(v[1])))*(abs(int(v[0]))/abs(int(v[0])))
+					if -v[0] != 0 {
+						v0a := math.Abs(float64(v[0]))
+						v1a := math.Abs(float64(v[1]))
+						xt := float64(x) + (v0a/v0a+v1a)*(v0a/v0a)
+						x = int(xt)
 					}
-					if v[1] != 0 {
-						y = y + (abs(int(v[1]))/abs(int(v[0]))+abs(int(v[1])))*(abs(int(v[1]))/abs(int(v[1])))
+					if -v[1] != 0 {
+						v0a := math.Abs(float64(v[0]))
+						v1a := math.Abs(float64(v[1]))
+						yt := float64(y) + (v1a/v0a+v1a)*(v1a/v1a)
+						y = int(yt)
 					}
 					r2 := float64(k * k)
 					w := (1.0 / (math.Pi * float64(sigma))) * math.Exp(-(r2)/float64(sigma))
 
+					xx := (x + rows) % rows
+					yy := (y + cols) % cols
+
 					dstAt := dst.GetFloatAt(i, j)
-					noiseAt := noise.GetFloatAt((x+nRows)%nRows, (y+nCols)%nCols)
+					noiseAt := noise.GetFloatAt(xx, yy)
 					newVal := float64(dstAt) + (w * float64(noiseAt))
 					dst.SetFloatAt(i, j, float32(newVal))
 
@@ -101,18 +106,12 @@ func (pp *PostProcessing) VisualizeEtf(dis gocv.Mat) *gocv.Mat {
 				dstAt := dst.GetFloatAt(i, j)
 				dstAt /= float32(wSum)
 
-				dis = gocv.NewMatWithSizeFromScalar(
-					gocv.Scalar{Val1: float64(dstAt), Val2: float64(dstAt), Val3: float64(dstAt), Val4: float64(dstAt)},
-					pp.flowField.Rows(),
-					pp.flowField.Cols(),
-					gocv.MatTypeCV32F,
-				)
+				dst.SetFloatAt(i, j, dstAt)
 			}(i, j)
 		}
 	}
-	wg.Wait()
 
-	return &dst
+	wg.Wait()
 }
 
 // Todo maybe should return Mat.

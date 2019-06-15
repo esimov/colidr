@@ -1,7 +1,6 @@
 package colidr
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"math"
@@ -30,6 +29,7 @@ type Options struct {
 	BlurSize      int
 	AntiAlias     bool
 	FDogIteration int
+	EtfViz        bool
 }
 
 type position struct {
@@ -55,7 +55,7 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 
 	err := etf.InitDefaultEtf(imgFile, image.Point{X: rows, Y: cols})
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Unable to initialize edge tangent flow: %s\n", err))
+		return nil, fmt.Errorf("Unable to initialize edge tangent flow: %s", err)
 	}
 
 	return &Cld{
@@ -73,6 +73,23 @@ func (c *Cld) GenerateCld() []byte {
 		}
 	}
 	return c.result.ToBytes()
+}
+
+func (c *Cld) generate() {
+	srcImg32FC1 := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
+	c.Image.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
+
+	c.gradientDoG(&srcImg32FC1, &c.dog, c.Rho, c.SigmaC)
+	c.flowDoG(&c.dog, &c.fDog, c.SigmaM)
+	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
+
+	pp := NewPostProcessing(c.BlurSize)
+	if c.AntiAlias {
+		pp.AntiAlias(c.result, c.result)
+	}
+	if c.EtfViz {
+		pp.VisualizeEtf(&c.etf.flowField, &c.result)
+	}
 }
 
 func (c *Cld) gradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
@@ -187,6 +204,7 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigma float64) {
 				}
 
 				// Integral alone inverse ETF
+				// TODO Check negative vector values
 				pos = &position{x: float64(x), y: float64(y)}
 				for step := 0; step < kernelHalf; step++ {
 					tmp := c.etf.flowField.GetVecfAt(int(pos.y), int(pos.x))
@@ -288,20 +306,6 @@ func (c *Cld) CombineImage() {
 	// Apply a gaussian blur to let it more smooth
 	gocv.GaussianBlur(c.Image, &c.Image, image.Point{c.BlurSize, c.BlurSize}, 0.0, 0.0, gocv.BorderConstant)
 	c.wg.Wait()
-}
-
-func (c *Cld) generate() {
-	srcImg32FC1 := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
-	c.Image.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
-
-	c.gradientDoG(&srcImg32FC1, &c.dog, c.Rho, c.SigmaC)
-	c.flowDoG(&c.dog, &c.fDog, c.SigmaM)
-	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
-
-	if c.Options.AntiAlias {
-		pp := NewPostProcessing(c.BlurSize)
-		pp.AntiAlias(c.result, c.result)
-	}
 }
 
 // gauss computes gaussian function of variance
