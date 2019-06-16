@@ -30,6 +30,7 @@ type Options struct {
 	AntiAlias     bool
 	FDogIteration int
 	EtfViz        bool
+	FlowField     bool
 }
 
 type position struct {
@@ -89,6 +90,9 @@ func (c *Cld) generate() {
 	}
 	if c.EtfViz {
 		pp.VisualizeEtf(&c.etf.flowField, &c.result)
+	}
+	if c.FlowField {
+		pp.FlowField(&c.etf.flowField, &c.result)
 	}
 }
 
