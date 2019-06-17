@@ -38,10 +38,14 @@ type position struct {
 }
 
 func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
-	if _, err := os.Stat(imgFile); os.IsNotExist(err) {
+	f, err := os.Stat(imgFile)
+	if os.IsNotExist(err) {
 		return nil, err
 	}
-
+	if f.IsDir() {
+		return nil, fmt.Errorf("missing file name.")
+	}
+	
 	srcImage := gocv.IMRead(imgFile, gocv.IMReadGrayScale)
 	rows, cols := srcImage.Rows(), srcImage.Cols()
 
@@ -54,7 +58,7 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	etf := NewETF()
 	etf.Init(rows, cols)
 
-	err := etf.InitDefaultEtf(imgFile, image.Point{X: rows, Y: cols})
+	err = etf.InitDefaultEtf(imgFile, image.Point{X: rows, Y: cols})
 	if err != nil {
 		return nil, fmt.Errorf("Unable to initialize edge tangent flow: %s", err)
 	}
