@@ -84,7 +84,7 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	}
 
 	gocv.Normalize(nm, &etf.flowField, 0.0, 1.0, gocv.NormMinMax)
-	//etf.rotateFlow(&etf.flowField, 90)
+	etf.rotateFlow(etf.flowField, &etf.flowField, 90)
 
 	return nil
 }
@@ -171,7 +171,7 @@ func (etf *Etf) computeWeightDirection(x, y gocv.Vecf) float32 {
 	return float32(math.Abs(float64(s)))
 }
 
-func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
+func (etf *Etf) rotateFlow(src gocv.Mat, dst *gocv.Mat, theta float64) {
 	theta = theta / 180.0 * math.Pi
 	data := src.ToBytes()
 	ch := etf.flowField.Channels()
@@ -182,8 +182,8 @@ func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			go func(y, x int) {
-				etf.mu.RLock()
-				defer etf.mu.RUnlock()
+				etf.mu.Lock()
+				defer etf.mu.Unlock()
 
 				v := src.GetVecfAt(y, x)
 
@@ -210,7 +210,7 @@ func (etf *Etf) rotateFlow(src *gocv.Mat, theta float64) {
 	if err != nil {
 		log.Fatalf("Cannot create new Mat from bytes: %v", err)
 	}
-	*src = nm.Clone()
+	*dst = nm.Clone()
 }
 
 // normalize normalize two values between 0..1
