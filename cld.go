@@ -45,7 +45,7 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	if f.IsDir() {
 		return nil, fmt.Errorf("missing file name.")
 	}
-	
+
 	srcImage := gocv.IMRead(imgFile, gocv.IMReadGrayScale)
 	rows, cols := srcImage.Rows(), srcImage.Cols()
 
@@ -77,6 +77,7 @@ func (c *Cld) GenerateCld() []byte {
 			c.generate()
 		}
 	}
+	c.result.ConvertTo(&c.result, gocv.ColorGrayToBGR, 255.0)
 	return c.result.ToBytes()
 }
 
@@ -160,13 +161,13 @@ func (c *Cld) gradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	c.wg.Wait()
 }
 
-func (c *Cld) flowDoG(src, dst *gocv.Mat, sigma float64) {
+func (c *Cld) flowDoG(src, dst *gocv.Mat, sigmaM float64) {
 	var (
 		gauAcc       float64
 		gauWeightAcc float64
 	)
 
-	gausVec := makeGaussianVector(sigma)
+	gausVec := makeGaussianVector(sigmaM)
 	width, height := src.Cols(), src.Rows()
 	kernelHalf := len(gausVec) - 1
 
@@ -202,6 +203,7 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigma float64) {
 					gauAcc += float64(value) * weight
 					gauWeightAcc += weight
 
+					// move along ETF direction
 					pos.x += direction.x
 					pos.y += direction.y
 
@@ -233,6 +235,7 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigma float64) {
 					gauAcc += float64(value) * weight
 					gauWeightAcc += weight
 
+					// move along ETF direction
 					pos.x += direction.x
 					pos.y += direction.y
 
