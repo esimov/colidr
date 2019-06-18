@@ -1522,6 +1522,15 @@ func (m *Mat) GetVecfAt(row int, col int) Vecf {
 	return v
 }
 
+// SetVecfAt sets a vector of floats on the specified matrix position.
+func (m *Mat) SetVecfAt(row int, col int, val Vecf) {
+	ch := m.Channels()
+
+	for c := 0; c < ch; c++ {
+		m.SetFloatAt(row, col*ch+c, val[c])
+	}
+}
+
 // Veci is a generic vector of integers.
 type Veci []int32
 
