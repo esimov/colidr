@@ -1508,6 +1508,28 @@ type DMatch struct {
 
 // Vecf is a generic vector of floats.
 type Vecf []float32
+type Vecb []uint8
+
+
+func (m *Mat) GetVecbAt(row int, col int) Vecb {
+	ch := m.Channels()
+	v := make(Vecb, ch)
+
+	for c := 0; c < ch; c++ {
+		v[c] = m.GetUCharAt(row, col*ch+c)
+	}
+
+	return v
+}
+
+// SetVecfAt sets a vector of floats on the specified matrix position.
+func (m *Mat) SetVecbAt(row int, col int, val Vecb) {
+	ch := m.Channels()
+
+	for c := 0; c < ch; c++ {
+		m.SetUCharAt(row, col*ch+c, val[c])
+	}
+}
 
 // GetVecfAt returns a vector of floats. Its size corresponds to the number of
 // channels of the Mat.
