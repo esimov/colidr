@@ -27,8 +27,10 @@ type Options struct {
 	Rho           float64
 	Tau           float32
 	BlurSize      int
-	AntiAlias     bool
+	EtfKernel int
+	EtfIteration int
 	FDogIteration int
+	AntiAlias     bool
 	EtfViz        bool
 	FlowField     bool
 }
@@ -43,7 +45,7 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 		return nil, err
 	}
 	if f.IsDir() {
-		return nil, fmt.Errorf("missing file name.")
+		return nil, fmt.Errorf("missing file name")
 	}
 
 	srcImage := gocv.IMRead(imgFile, gocv.IMReadGrayScale)
@@ -60,7 +62,11 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 
 	err = etf.InitDefaultEtf(imgFile, image.Point{X: rows, Y: cols})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to initialize edge tangent flow: %s", err)
+		return nil, fmt.Errorf("unable to initialize edge tangent flow: %s", err)
+	}
+
+	for i := 0; i < cldOpts.EtfIteration; i++ {
+		etf.RefineEtf(cldOpts.EtfKernel)
 	}
 
 	return &Cld{
@@ -73,11 +79,10 @@ func (c *Cld) GenerateCld() []byte {
 
 	if c.FDogIteration > 0 {
 		for i := 0; i < c.FDogIteration; i++ {
-			c.CombineImage()
+			c.combineImage()
 			c.generate()
 		}
 	}
-	c.result.ConvertTo(&c.result, gocv.ColorGrayToBGR, 255.0)
 	return c.result.ToBytes()
 }
 
@@ -89,12 +94,26 @@ func (c *Cld) generate() {
 	c.flowDoG(&c.dog, &c.fDog, c.SigmaM)
 	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
 
+	window := gocv.NewWindow("dog")
+	window.IMShow(c.dog)
+	window.WaitKey(0)
+
+
+	window = gocv.NewWindow("fdog")
+	window.IMShow(c.fDog)
+	window.WaitKey(0)
+
+
+	window = gocv.NewWindow("result")
+	window.IMShow(c.result)
+	window.WaitKey(0)
+
 	pp := NewPostProcessing(c.BlurSize)
 	if c.AntiAlias {
 		pp.AntiAlias(c.result, c.result)
 	}
 	if c.EtfViz {
-		pp.VisualizeEtf(&c.etf.flowField, &c.result)
+		pp.VizEtf(&c.etf.flowField, &c.result)
 	}
 	if c.FlowField {
 		pp.FlowField(&c.etf.flowField, &c.result)
@@ -214,7 +233,6 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigmaM float64) {
 				}
 
 				// Integral alone inverse ETF
-				// TODO Check negative vector values
 				pos = &position{x: float64(x), y: float64(y)}
 				for step := 0; step < kernelHalf; step++ {
 					tmp := c.etf.flowField.GetVecfAt(int(pos.y), int(pos.x))
@@ -282,9 +300,9 @@ func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 				h := src.GetFloatAt(y, x)
 				v := func(h float32) uint8 {
 					if h < tau {
-						return 255
+						return 0
 					}
-					return 0
+					return 255
 				}(h)
 				dst.SetUCharAt(y, x, v)
 
@@ -297,7 +315,7 @@ func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 	return dst.ToBytes()
 }
 
-func (c *Cld) CombineImage() {
+func (c *Cld) combineImage() {
 	for y := 0; y < c.Image.Rows(); y++ {
 		for x := 0; x < c.Image.Cols(); x++ {
 			c.wg.Add(1)

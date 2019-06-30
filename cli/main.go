@@ -30,16 +30,18 @@ func main() {
 	var (
 		source        = flag.String("in", "", "Source image")
 		destination   = flag.String("out", "", "Destination image")
-		sigmaR        = flag.Float64("r", 1.6, "SigmaR")
-		sigmaM        = flag.Float64("m", 4.55, "SigmaM")
-		sigmaC        = flag.Float64("c", 1.612, "SigmaC")
-		rho           = flag.Float64("rho", 1.994, "Rho")
-		tau           = flag.Float64("tau", 0.58, "Tau")
+		sigmaR        = flag.Float64("r", 2.6, "SigmaR")
+		sigmaM        = flag.Float64("m", 3.0, "SigmaM")
+		sigmaC        = flag.Float64("c", 1.0, "SigmaC")
+		rho           = flag.Float64("rho", 0.98, "Rho")
+		tau           = flag.Float64("tau", 0.98, "Tau")
+		etfKernel = flag.Int("kernel", 1, "Etf kernel")
+		etfIteration = flag.Int("eit", 2, "Number of Etf iteration")
+		fDogIteration = flag.Int("fit", 0, "Number of FDoG iteration")
 		blurSize      = flag.Int("blur", 3, "Blur size")
 		antiAlias     = flag.Bool("aa", false, "Anti aliasing")
 		etfViz        = flag.Bool("etf", false, "Vizualize Etf")
 		flowField     = flag.Bool("ff", false, "Vizualize flowfield")
-		fDogIteration = flag.Int("it", 0, "Number of FDoG iteration")
 	)
 
 	flag.Usage = func() {
@@ -65,9 +67,11 @@ func main() {
 		SigmaC:        *sigmaC,
 		Rho:           *rho,
 		Tau:           float32(*tau),
+		EtfKernel: *etfKernel,
+		EtfIteration: *etfIteration,
+		FDogIteration: *fDogIteration,
 		BlurSize:      *blurSize,
 		AntiAlias:     *antiAlias,
-		FDogIteration: *fDogIteration,
 		EtfViz:        *etfViz,
 		FlowField:     *flowField,
 	}

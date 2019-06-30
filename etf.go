@@ -2,16 +2,16 @@ package colidr
 
 import (
 	"image"
-	"log"
 	"math"
 	"sync"
-	"unsafe"
 
 	"gocv.io/x/gocv"
+	"fmt"
 )
 
 type Etf struct {
 	flowField   gocv.Mat
+	gradientField gocv.Mat
 	refinedEtf  gocv.Mat
 	gradientMag gocv.Mat
 	wg          sync.WaitGroup
@@ -28,29 +28,43 @@ func NewETF() *Etf {
 }
 
 func (etf *Etf) Init(rows, cols int) {
-	etf.flowField = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
-	etf.refinedEtf = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
-	etf.gradientMag = gocv.NewMatWithSize(rows, cols, gocv.MatChannels3)
+	etf.flowField = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F + gocv.MatChannels3)
+	etf.gradientField = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F + gocv.MatChannels3)
+	etf.refinedEtf = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F + gocv.MatChannels3)
+	etf.gradientMag = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F + gocv.MatChannels3)
 }
 
 func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	etf.resizeMat(size)
 
 	src := gocv.IMRead(file, gocv.IMReadColor)
+	src.ConvertTo(&src, gocv.MatTypeCV32F, 255)
 	gocv.Normalize(src, &src, 0.0, 1.0, gocv.NormMinMax)
 
+	// Generate gradX and gradY
 	gradX := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
 	gradY := gocv.NewMatWithSize(src.Rows(), src.Cols(), gocv.MatTypeCV32F)
 
 	gocv.Sobel(src, &gradX, gocv.MatTypeCV32F, 1, 0, 5, 1, 0, gocv.BorderDefault)
 	gocv.Sobel(src, &gradY, gocv.MatTypeCV32F, 0, 1, 5, 1, 0, gocv.BorderDefault)
 
+	/*window := gocv.NewWindow("gradx")
+	window.IMShow(gradX)
+	window.WaitKey(0)
+
+	window = gocv.NewWindow("grady")
+	window.IMShow(gradY)
+	window.WaitKey(0)*/
+
 	// Compute gradient
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
 	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMinMax)
 
-	data := etf.flowField.ToBytes()
-	ch := etf.flowField.Channels()
+	//gradX.ConvertTo(&gradX, gocv.MatTypeCV8UC3, 255)
+	//gradY.ConvertTo(&gradY, gocv.MatTypeCV8UC3, 255)
+
+	data := etf.gradientField.ToBytes()
+	ch := etf.gradientField.Channels()
 
 	width, height := src.Cols(), src.Rows()
 	etf.wg.Add(width * height)
@@ -65,57 +79,70 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 				v := gradY.GetVecfAt(y, x)
 
 				// Obtain the pixel channel value from Mat image and
-				// update the flowField vector with values from sobel matrix.
-				idx := y*ch + x*height*ch
+				// update the gradientField vector with values from sobel matrix.
+				idx := y*ch + (x*ch*height)
 
 				data[idx+0] = byte(v[0])
 				data[idx+1] = byte(u[0])
-				data[idx+2] = 0
+				data[idx+2] = 0.0
 
+				//fmt.Println(gocv.Vecb{v[0], u[0], 0.0})
+				etf.gradientField.SetVecfAt(y, x, gocv.Vecf{v[0], u[0], 0})
+				//fmt.Println(gocv.Vecf{v[0], u[0], 0})
 				etf.wg.Done()
 			}(y, x)
 		}
 	}
 
 	etf.wg.Wait()
-	nm, err := gocv.NewMatFromBytes(src.Rows(), src.Cols(), gocv.MatChannels3, data)
-	if err != nil {
-		return err
-	}
 
-	gocv.Normalize(nm, &etf.flowField, 0.0, 1.0, gocv.NormMinMax)
-	etf.rotateFlow(etf.flowField, &etf.flowField, 90)
+	window := gocv.NewWindow("gradient")
+	window.IMShow(etf.gradientField)
+	window.WaitKey(0)
+
+	//etf.gradientField.ConvertTo(&etf.gradientField, gocv.MatTypeCV32F + gocv.MatChannels3, 255)
+	fmt.Println(etf.gradientField.Type())
+	etf.rotateFlow(&etf.gradientField, &etf.flowField, 90)
+	//etf.flowField.ConvertTo(&etf.flowField, gocv.MatTypeCV64F, 255)
+
+	window = gocv.NewWindow("flow")
+	window.IMShow(etf.flowField)
+	window.WaitKey(0)
 
 	return nil
 }
 
 func (etf *Etf) RefineEtf(kernel int) {
-	for y := 0; y < etf.flowField.Rows(); y++ {
-		for x := 0; x < etf.flowField.Cols(); x++ {
-			etf.wg.Add(1)
-			// Spawn computation into separate goroutines
-			go func(x, y int) {
-				etf.mu.Lock()
-				defer etf.mu.Unlock()
+	width, height := etf.flowField.Cols(), etf.flowField.Rows()
+	etf.wg.Add(width * height)
 
-				etf.computeNewVector(x, y, kernel)
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			// Spawn computation into separate goroutines
+			go func(y, x int) {
+				etf.mu.Lock()
+				etf.computeNewVector(y, x, kernel)
+				etf.mu.Unlock()
+
 				etf.wg.Done()
-			}(x, y)
+			}(y, x)
 		}
 	}
 	etf.wg.Wait()
-	etf.flowField = etf.refinedEtf
+	etf.flowField = etf.refinedEtf.Clone()
 }
 
 func (etf *Etf) resizeMat(size image.Point) {
-	gocv.Resize(etf.flowField, &etf.flowField, size, 0, 0, gocv.InterpolationDefault)
-	gocv.Resize(etf.refinedEtf, &etf.refinedEtf, size, 0, 0, gocv.InterpolationDefault)
-	gocv.Resize(etf.gradientMag, &etf.gradientMag, size, 0, 0, gocv.InterpolationDefault)
+	gocv.Resize(etf.gradientField, &etf.gradientField, size, 0, 0, gocv.InterpolationLinear)
+	gocv.Resize(etf.flowField, &etf.flowField, size, 0, 0, gocv.InterpolationLinear)
+	gocv.Resize(etf.refinedEtf, &etf.refinedEtf, size, 0, 0, gocv.InterpolationLinear)
+	gocv.Resize(etf.gradientMag, &etf.gradientMag, size, 0, 0, gocv.InterpolationLinear)
 }
 
 func (etf *Etf) computeNewVector(x, y int, kernel int) {
-	var tNew float32
+	var tNew0, tNew1, tNew2 float32
 	tCurX := etf.flowField.GetVecfAt(y, x)
+	//fmt.Println(tCurX)
 
 	for r := y - kernel; r <= y+kernel; r++ {
 		for c := x - kernel; c <= x+kernel; c++ {
@@ -124,17 +151,21 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 				continue
 			}
 			tCurY := etf.flowField.GetVecfAt(r, c)
+
 			phi := etf.computePhi(tCurX, tCurY)
-
 			// Compute the euclidean distance of the current point and the neighboring point.
-			weightSpatial := etf.computeWeightSpatial(point{x, y}, point{c, r}, kernel)
-			weightMagnitude := etf.computeWeightMagnitude(etf.gradientMag.GetFloatAt(y, x), etf.gradientMag.GetFloatAt(r, c))
-			weightDirection := etf.computeWeightDirection(tCurX, tCurY)
+			ws := etf.computeWeightSpatial(point{x, y}, point{c, r}, kernel)
+			wm := etf.computeWeightMagnitude(etf.gradientMag.GetFloatAt(y, x), etf.gradientMag.GetFloatAt(r, c))
+			wd := etf.computeWeightDirection(tCurX, tCurY)
 
-			tNew += phi * tCurY[0] * weightSpatial * weightMagnitude * weightDirection
+			tNew0 += phi * tCurY[0] * ws * wm * wd
+			tNew1 += phi * tCurY[1] * ws * wm * wd
+			tNew2 += phi * tCurY[2] * ws * wm * wd
 		}
 	}
-	etf.refinedEtf.SetFloatAt(y, x, tNew)
+
+	//fmt.Println(tNew0, tNew1, tNew2)
+	etf.refinedEtf.SetVecfAt(y, x, gocv.Vecf{tNew0, tNew1, tNew2})
 	gocv.Normalize(etf.refinedEtf, &etf.refinedEtf, 0.0, 1.0, gocv.NormMinMax)
 }
 
@@ -164,6 +195,7 @@ func (etf *Etf) computeWeightMagnitude(gradMagX, gradMagY float32) float32 {
 
 func (etf *Etf) computeWeightDirection(x, y gocv.Vecf) float32 {
 	var s float32
+
 	// Compute the dot product.
 	for i := 0; i < etf.flowField.Channels(); i++ {
 		s += x[i] * y[i]
@@ -171,10 +203,8 @@ func (etf *Etf) computeWeightDirection(x, y gocv.Vecf) float32 {
 	return float32(math.Abs(float64(s)))
 }
 
-func (etf *Etf) rotateFlow(src gocv.Mat, dst *gocv.Mat, theta float64) {
+func (etf *Etf) rotateFlow(src, dst *gocv.Mat, theta float64) {
 	theta = theta / 180.0 * math.Pi
-	data := src.ToBytes()
-	ch := etf.flowField.Channels()
 
 	width, height := src.Cols(), src.Rows()
 	etf.wg.Add(width * height)
@@ -187,18 +217,11 @@ func (etf *Etf) rotateFlow(src gocv.Mat, dst *gocv.Mat, theta float64) {
 
 				v := src.GetVecfAt(y, x)
 
-				// Obtain the source vector value and rotate it.
+				// Obtain the vector value and rotate it.
 				rx := float64(v[0])*math.Cos(theta) - float64(v[1])*math.Sin(theta)
 				ry := float64(v[0])*math.Sin(theta) + float64(v[1])*math.Cos(theta)
 
-				// Obtain the pixel channel value from src Mat image and
-				// apply the rotation values to the destination matrix.
-				idx := y*ch + x*height*ch
-
-				// Convert float64 to byte
-				data[idx+0] = byte(*(*byte)(unsafe.Pointer(&rx)))
-				data[idx+1] = byte(*(*byte)(unsafe.Pointer(&ry)))
-				data[idx+2] = 0.0
+				dst.SetVecfAt(y, x, gocv.Vecf{float32(rx), float32(ry), 0})
 
 				etf.wg.Done()
 			}(y, x)
@@ -206,11 +229,7 @@ func (etf *Etf) rotateFlow(src gocv.Mat, dst *gocv.Mat, theta float64) {
 	}
 	etf.wg.Wait()
 
-	nm, err := gocv.NewMatFromBytes(height, width, gocv.MatChannels3, data)
-	if err != nil {
-		log.Fatalf("Cannot create new Mat from bytes: %v", err)
-	}
-	*dst = nm.Clone()
+
 }
 
 // normalize normalize two values between 0..1
