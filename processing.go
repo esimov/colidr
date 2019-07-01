@@ -20,7 +20,7 @@ func NewPostProcessing(blurSize int) *PostProcessing {
 	}
 }
 
-func (pp *PostProcessing) VisualizeEtf(flowField, dst *gocv.Mat) {
+func (pp *PostProcessing) VizEtf(flowField, dst *gocv.Mat) {
 	noise := gocv.NewMatWithSize(flowField.Cols()/2, flowField.Rows()/2, gocv.MatTypeCV32F)
 
 	gocv.Randu(&noise, 0, 1.0)
@@ -43,7 +43,6 @@ func (pp *PostProcessing) VisualizeEtf(flowField, dst *gocv.Mat) {
 				y := j
 
 				for k := 0; k < s; k++ {
-					gocv.Normalize(*flowField, flowField, 0.0, 1.0, gocv.NormMinMax)
 					v := flowField.GetVecfAt((x+rows)%rows, (y+cols)%cols)
 					if v[0] != 0 {
 						v0a := math.Abs(float64(v[0]))
@@ -75,18 +74,17 @@ func (pp *PostProcessing) VisualizeEtf(flowField, dst *gocv.Mat) {
 				y = j
 
 				for k := 0; k < s; k++ {
-					gocv.Normalize(*flowField, flowField, 0.0, 1.0, gocv.NormMinMax)
 					v := flowField.GetVecfAt((x+rows)%rows, (y+cols)%cols)
 
 					if -v[0] != 0 {
-						v0a := math.Abs(float64(v[0]))
-						v1a := math.Abs(float64(v[1]))
+						v0a := math.Abs(float64(-v[0]))
+						v1a := math.Abs(float64(-v[1]))
 						xt := float64(x) + (v0a/v0a+v1a)*(v0a/v0a)
 						x = int(xt)
 					}
 					if -v[1] != 0 {
-						v0a := math.Abs(float64(v[0]))
-						v1a := math.Abs(float64(v[1]))
+						v0a := math.Abs(float64(-v[0]))
+						v1a := math.Abs(float64(-v[1]))
 						yt := float64(y) + (v1a/v0a+v1a)*(v1a/v1a)
 						y = int(yt)
 					}
