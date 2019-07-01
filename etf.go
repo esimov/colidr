@@ -109,6 +109,8 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	window.IMShow(etf.flowField)
 	window.WaitKey(0)
 
+	gocv.IMWrite("/home/esimov/Desktop/flowfield.tiff", etf.flowField)
+
 	return nil
 }
 
@@ -153,7 +155,7 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 			tCurY := etf.flowField.GetVecfAt(r, c)
 
 			phi := etf.computePhi(tCurX, tCurY)
-			// Compute the euclidean distance of the current point and the neighboring point.
+			// Compute the euclidean distance of the current point and the neighborhood point.
 			ws := etf.computeWeightSpatial(point{x, y}, point{c, r}, kernel)
 			wm := etf.computeWeightMagnitude(etf.gradientMag.GetFloatAt(y, x), etf.gradientMag.GetFloatAt(r, c))
 			wd := etf.computeWeightDirection(tCurX, tCurY)
@@ -164,14 +166,12 @@ func (etf *Etf) computeNewVector(x, y int, kernel int) {
 		}
 	}
 
-	//fmt.Println(tNew0, tNew1, tNew2)
-	etf.refinedEtf.SetVecfAt(y, x, gocv.Vecf{tNew0, tNew1, tNew2})
-	gocv.Normalize(etf.refinedEtf, &etf.refinedEtf, 0.0, 1.0, gocv.NormMinMax)
+	etf.refinedEtf.SetVecfAt(y, x, etf.normalize(tNew0, tNew1, tNew2))
 }
 
 func (etf *Etf) computePhi(x, y gocv.Vecf) float32 {
-	wd := etf.computeWeightDirection(x, y)
-	if wd > 0 {
+	dot := etf.computeDot(x, y)
+	if dot > 0 {
 		return 1.0
 	}
 	return -1.0
@@ -194,13 +194,26 @@ func (etf *Etf) computeWeightMagnitude(gradMagX, gradMagY float32) float32 {
 }
 
 func (etf *Etf) computeWeightDirection(x, y gocv.Vecf) float32 {
-	var s float32
+	return float32(math.Abs(float64(etf.computeDot(x, y))))
+}
 
-	// Compute the dot product.
-	for i := 0; i < etf.flowField.Channels(); i++ {
+func (etf *Etf) computeDot(x, y gocv.Vecf) float32 {
+	var s float32
+	ch := etf.flowField.Channels()
+
+	for i := 0; i < ch; i++ {
 		s += x[i] * y[i]
 	}
-	return float32(math.Abs(float64(s)))
+	return s
+}
+
+func (etf *Etf) normalize(x, y, z float32) gocv.Vecf {
+	nv := float32(math.Sqrt(float64(x*x) + float64(y*y) + float64(z*z)))
+
+	if nv > 0.0 {
+		return gocv.Vecf{x * 1.0/nv, y * 1.0/nv, z * 1.0/nv}
+	}
+	return gocv.Vecf{0.0, 0.0, 0.0}
 }
 
 func (etf *Etf) rotateFlow(src, dst *gocv.Mat, theta float64) {
@@ -228,8 +241,6 @@ func (etf *Etf) rotateFlow(src, dst *gocv.Mat, theta float64) {
 		}
 	}
 	etf.wg.Wait()
-
-
 }
 
 // normalize normalize two values between 0..1
