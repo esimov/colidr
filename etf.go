@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"gocv.io/x/gocv"
-	"fmt"
 )
 
 type Etf struct {
@@ -48,20 +47,9 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	gocv.Sobel(src, &gradX, gocv.MatTypeCV32F, 1, 0, 5, 1, 0, gocv.BorderDefault)
 	gocv.Sobel(src, &gradY, gocv.MatTypeCV32F, 0, 1, 5, 1, 0, gocv.BorderDefault)
 
-	/*window := gocv.NewWindow("gradx")
-	window.IMShow(gradX)
-	window.WaitKey(0)
-
-	window = gocv.NewWindow("grady")
-	window.IMShow(gradY)
-	window.WaitKey(0)*/
-
 	// Compute gradient
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
 	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMinMax)
-
-	//gradX.ConvertTo(&gradX, gocv.MatTypeCV8UC3, 255)
-	//gradY.ConvertTo(&gradY, gocv.MatTypeCV8UC3, 255)
 
 	data := etf.gradientField.ToBytes()
 	ch := etf.gradientField.Channels()
@@ -86,9 +74,7 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 				data[idx+1] = byte(u[0])
 				data[idx+2] = 0.0
 
-				//fmt.Println(gocv.Vecb{v[0], u[0], 0.0})
 				etf.gradientField.SetVecfAt(y, x, gocv.Vecf{v[0], u[0], 0})
-				//fmt.Println(gocv.Vecf{v[0], u[0], 0})
 				etf.wg.Done()
 			}(y, x)
 		}
@@ -100,16 +86,11 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	window.IMShow(etf.gradientField)
 	window.WaitKey(0)
 
-	//etf.gradientField.ConvertTo(&etf.gradientField, gocv.MatTypeCV32F + gocv.MatChannels3, 255)
-	fmt.Println(etf.gradientField.Type())
 	etf.rotateFlow(&etf.gradientField, &etf.flowField, 90)
-	//etf.flowField.ConvertTo(&etf.flowField, gocv.MatTypeCV64F, 255)
 
 	window = gocv.NewWindow("flow")
 	window.IMShow(etf.flowField)
 	window.WaitKey(0)
-
-	gocv.IMWrite("/home/esimov/Desktop/flowfield.tiff", etf.flowField)
 
 	return nil
 }
@@ -141,10 +122,36 @@ func (etf *Etf) resizeMat(size image.Point) {
 	gocv.Resize(etf.gradientMag, &etf.gradientMag, size, 0, 0, gocv.InterpolationLinear)
 }
 
+func (etf *Etf) rotateFlow(src, dst *gocv.Mat, theta float64) {
+	theta = theta / 180.0 * math.Pi
+
+	width, height := src.Cols(), src.Rows()
+	etf.wg.Add(width * height)
+
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			go func(y, x int) {
+				etf.mu.Lock()
+				defer etf.mu.Unlock()
+
+				v := src.GetVecfAt(y, x)
+
+				// Obtain the vector value and rotate it.
+				rx := float64(v[0])*math.Cos(theta) - float64(v[1])*math.Sin(theta)
+				ry := float64(v[0])*math.Sin(theta) + float64(v[1])*math.Cos(theta)
+
+				dst.SetVecfAt(y, x, gocv.Vecf{float32(rx), float32(ry), 0})
+
+				etf.wg.Done()
+			}(y, x)
+		}
+	}
+	etf.wg.Wait()
+}
+
 func (etf *Etf) computeNewVector(x, y int, kernel int) {
 	var tNew0, tNew1, tNew2 float32
 	tCurX := etf.flowField.GetVecfAt(y, x)
-	//fmt.Println(tCurX)
 
 	for r := y - kernel; r <= y+kernel; r++ {
 		for c := x - kernel; c <= x+kernel; c++ {
@@ -214,40 +221,4 @@ func (etf *Etf) normalize(x, y, z float32) gocv.Vecf {
 		return gocv.Vecf{x * 1.0/nv, y * 1.0/nv, z * 1.0/nv}
 	}
 	return gocv.Vecf{0.0, 0.0, 0.0}
-}
-
-func (etf *Etf) rotateFlow(src, dst *gocv.Mat, theta float64) {
-	theta = theta / 180.0 * math.Pi
-
-	width, height := src.Cols(), src.Rows()
-	etf.wg.Add(width * height)
-
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			go func(y, x int) {
-				etf.mu.Lock()
-				defer etf.mu.Unlock()
-
-				v := src.GetVecfAt(y, x)
-
-				// Obtain the vector value and rotate it.
-				rx := float64(v[0])*math.Cos(theta) - float64(v[1])*math.Sin(theta)
-				ry := float64(v[0])*math.Sin(theta) + float64(v[1])*math.Cos(theta)
-
-				dst.SetVecfAt(y, x, gocv.Vecf{float32(rx), float32(ry), 0})
-
-				etf.wg.Done()
-			}(y, x)
-		}
-	}
-	etf.wg.Wait()
-}
-
-// normalize normalize two values between 0..1
-func normalize(a, b float32) float32 {
-	norm := 1 - float32(math.Abs(float64(a)-float64(b))/math.Max(float64(a), float64(b)))
-	if norm < 0.0 {
-		return 0.0
-	}
-	return norm
 }
