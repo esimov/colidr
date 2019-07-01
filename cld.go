@@ -54,11 +54,11 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	}
 
 	srcImage := gocv.IMRead(imgFile, gocv.IMReadGrayScale)
-	rows, cols := srcImage.Rows(), srcImage.Cols()
+	rows, cols := srcImage.Cols(), srcImage.Rows()
 
-	result := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV8UC1)
-	dog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
-	fDog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
+	result := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV8UC1)
+	dog := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV32F)
+	fDog := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV32F)
 
 	var wg sync.WaitGroup
 

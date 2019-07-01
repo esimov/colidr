@@ -113,7 +113,7 @@ func (etf *Etf) RefineEtf(kernel int) {
 			// Spawn computation into separate goroutines
 			go func(y, x int) {
 				etf.mu.Lock()
-				etf.computeNewVector(y, x, kernel)
+				etf.computeNewVector(x, y, kernel)
 				etf.mu.Unlock()
 
 				etf.wg.Done()
