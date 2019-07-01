@@ -27,8 +27,8 @@ type Options struct {
 	Rho           float64
 	Tau           float32
 	BlurSize      int
-	EtfKernel int
-	EtfIteration int
+	EtfKernel     int
+	EtfIteration  int
 	FDogIteration int
 	AntiAlias     bool
 	EtfViz        bool
@@ -98,11 +98,9 @@ func (c *Cld) generate() {
 	window.IMShow(c.dog)
 	window.WaitKey(0)
 
-
 	window = gocv.NewWindow("fdog")
 	window.IMShow(c.fDog)
 	window.WaitKey(0)
-
 
 	window = gocv.NewWindow("result")
 	window.IMShow(c.result)

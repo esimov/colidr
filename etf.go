@@ -9,12 +9,12 @@ import (
 )
 
 type Etf struct {
-	flowField   gocv.Mat
+	flowField     gocv.Mat
 	gradientField gocv.Mat
-	refinedEtf  gocv.Mat
-	gradientMag gocv.Mat
-	wg          sync.WaitGroup
-	mu          sync.RWMutex
+	refinedEtf    gocv.Mat
+	gradientMag   gocv.Mat
+	wg            sync.WaitGroup
+	mu            sync.RWMutex
 }
 
 type point struct {
@@ -27,10 +27,10 @@ func NewETF() *Etf {
 }
 
 func (etf *Etf) Init(rows, cols int) {
-	etf.flowField = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F + gocv.MatChannels3)
-	etf.gradientField = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F + gocv.MatChannels3)
-	etf.refinedEtf = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F + gocv.MatChannels3)
-	etf.gradientMag = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F + gocv.MatChannels3)
+	etf.flowField = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F+gocv.MatChannels3)
+	etf.gradientField = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F+gocv.MatChannels3)
+	etf.refinedEtf = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F+gocv.MatChannels3)
+	etf.gradientMag = gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F+gocv.MatChannels3)
 }
 
 func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
@@ -68,7 +68,7 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 
 				// Obtain the pixel channel value from Mat image and
 				// update the gradientField vector with values from sobel matrix.
-				idx := y*ch + (x*ch*height)
+				idx := y*ch + (x * ch * height)
 
 				data[idx+0] = byte(v[0])
 				data[idx+1] = byte(u[0])
@@ -218,7 +218,7 @@ func (etf *Etf) normalize(x, y, z float32) gocv.Vecf {
 	nv := float32(math.Sqrt(float64(x*x) + float64(y*y) + float64(z*z)))
 
 	if nv > 0.0 {
-		return gocv.Vecf{x * 1.0/nv, y * 1.0/nv, z * 1.0/nv}
+		return gocv.Vecf{x * 1.0 / nv, y * 1.0 / nv, z * 1.0 / nv}
 	}
 	return gocv.Vecf{0.0, 0.0, 0.0}
 }

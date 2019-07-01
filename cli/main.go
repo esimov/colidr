@@ -35,8 +35,8 @@ func main() {
 		sigmaC        = flag.Float64("sc", 1.0, "SigmaC")
 		rho           = flag.Float64("rho", 0.98, "Rho")
 		tau           = flag.Float64("tau", 0.98, "Tau")
-		etfKernel = flag.Int("k", 3, "Etf kernel")
-		etfIteration = flag.Int("ei", 1, "Number of Etf iteration")
+		etfKernel     = flag.Int("k", 3, "Etf kernel")
+		etfIteration  = flag.Int("ei", 1, "Number of Etf iteration")
 		fDogIteration = flag.Int("di", 0, "Number of FDoG iteration")
 		blurSize      = flag.Int("bl", 3, "Blur size")
 		antiAlias     = flag.Bool("aa", false, "Anti aliasing")
@@ -67,8 +67,8 @@ func main() {
 		SigmaC:        *sigmaC,
 		Rho:           *rho,
 		Tau:           float32(*tau),
-		EtfKernel: *etfKernel,
-		EtfIteration: *etfIteration,
+		EtfKernel:     *etfKernel,
+		EtfIteration:  *etfIteration,
 		FDogIteration: *fDogIteration,
 		BlurSize:      *blurSize,
 		AntiAlias:     *antiAlias,
