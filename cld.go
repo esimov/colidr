@@ -10,6 +10,7 @@ import (
 	"gocv.io/x/gocv"
 )
 
+// Cld is the main entry struct for the Coherent Line Drawing operations.
 type Cld struct {
 	Image  gocv.Mat
 	result gocv.Mat
@@ -20,6 +21,8 @@ type Cld struct {
 	Options
 }
 
+// Options struct contains all the options currently supported by Cld,
+// exposed by the main CLI application.
 type Options struct {
 	SigmaR        float64
 	SigmaM        float64
@@ -35,10 +38,12 @@ type Options struct {
 	FlowField     bool
 }
 
+// position is a basic struct for vector type operations
 type position struct {
 	x, y float64
 }
 
+// NewCLD is the constructor method which require the source image and the CLD options as parameters.
 func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	f, err := os.Stat(imgFile)
 	if os.IsNotExist(err) {
@@ -74,6 +79,8 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	}, nil
 }
 
+// GenerateCld is the entry method for generating the coherent line drawing output.
+// It triggers the generate method in iterative manner and returns the resulting byte array.
 func (c *Cld) GenerateCld() []byte {
 	c.generate()
 
@@ -86,6 +93,7 @@ func (c *Cld) GenerateCld() []byte {
 	return c.result.ToBytes()
 }
 
+// generate is a helper method which enclose all the requested operation for the CLD computation.
 func (c *Cld) generate() {
 	srcImg32FC1 := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
 	c.Image.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
@@ -106,6 +114,7 @@ func (c *Cld) generate() {
 	window.IMShow(c.result)
 	window.WaitKey(0)
 
+	// TODO check for order
 	pp := NewPostProcessing(c.BlurSize)
 	if c.AntiAlias {
 		pp.AntiAlias(c.result, c.result)
@@ -118,6 +127,7 @@ func (c *Cld) generate() {
 	}
 }
 
+// gradientDoG computes the gradient difference-of-Gaussians (DoG)
 func (c *Cld) gradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	var sigmaS = c.SigmaR * sigmaC
 	gvc := makeGaussianVector(sigmaC)
@@ -178,6 +188,7 @@ func (c *Cld) gradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	c.wg.Wait()
 }
 
+// flowDoG computes the flow difference-of-Gaussians (DoG)
 func (c *Cld) flowDoG(src, dst *gocv.Mat, sigmaM float64) {
 	var (
 		gauAcc       float64
@@ -284,7 +295,7 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigmaM float64) {
 	c.wg.Wait()
 }
 
-// BinaryThreshold threshold an image as black and white.
+// binaryThreshold threshold an image as black and white.
 func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 	width, height := dst.Cols(), dst.Rows()
 	c.wg.Add(width * height)
@@ -340,6 +351,7 @@ func gauss(x, mean, sigma float64) float64 {
 	return math.Exp((-(x-mean)*(x-mean))/(2*sigma*sigma)) / math.Sqrt(math.Pi*2.0*sigma*sigma)
 }
 
+// makeGaussianVector constructs a gaussian vector field of floats
 func makeGaussianVector(sigma float64) []float64 {
 	var (
 		gau       []float64
