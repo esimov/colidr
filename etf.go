@@ -58,9 +58,6 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	gocv.Magnitude(gradX, gradY, &etf.gradientMag)
 	gocv.Normalize(etf.gradientMag, &etf.gradientMag, 0.0, 1.0, gocv.NormMinMax)
 
-	data := etf.gradientField.ToBytes()
-	ch := etf.gradientField.Channels()
-
 	width, height := src.Cols(), src.Rows()
 	etf.wg.Add(width * height)
 
@@ -72,14 +69,6 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 
 				u := gradX.GetVecfAt(y, x)
 				v := gradY.GetVecfAt(y, x)
-
-				// Obtain the pixel channel value from Mat image and
-				// update the gradientField vector with values from sobel matrix.
-				idx := y*ch + (x * ch * height)
-
-				data[idx+0] = byte(v[0])
-				data[idx+1] = byte(u[0])
-				data[idx+2] = 0.0
 
 				etf.gradientField.SetVecfAt(y, x, gocv.Vecf{v[0], u[0], 0})
 				etf.wg.Done()
