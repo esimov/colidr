@@ -40,7 +40,8 @@ func main() {
 		fDogIteration = flag.Int("di", 0, "Number of FDoG iteration")
 		blurSize      = flag.Int("bl", 3, "Blur size")
 		antiAlias     = flag.Bool("aa", false, "Anti aliasing")
-		etfViz        = flag.Bool("etf", false, "Vizualize Etf")
+		visEtf        = flag.Bool("ve", false, "Visualize Etf")
+		visResult     = flag.Bool("vr", false, "Visualize end result")
 	)
 
 	flag.Usage = func() {
@@ -71,7 +72,8 @@ func main() {
 		FDogIteration: *fDogIteration,
 		BlurSize:      *blurSize,
 		AntiAlias:     *antiAlias,
-		EtfViz:        *etfViz,
+		VisEtf:        *visEtf,
+		VisResult:     *visResult,
 	}
 
 	fmt.Print("Generating")

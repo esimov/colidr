@@ -34,7 +34,8 @@ type Options struct {
 	EtfIteration  int
 	FDogIteration int
 	AntiAlias     bool
-	EtfViz        bool
+	VisEtf        bool
+	VisResult     bool
 }
 
 // position is a basic struct for vector type operations
@@ -90,16 +91,23 @@ func (c *Cld) GenerateCld() []byte {
 		}
 	}
 
+	if c.VisResult {
+		window := gocv.NewWindow("result")
+		window.SetWindowTitle("End result")
+		window.IMShow(c.result)
+		window.WaitKey(0)
+	}
+
 	pp := NewPostProcessing(c.BlurSize)
 	if c.AntiAlias {
 		pp.AntiAlias(c.result, c.result)
 	}
-	if c.EtfViz {
+	if c.VisEtf {
 		preview := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
 		pp.VizEtf(&c.etf.flowField, &preview)
 
 		window := gocv.NewWindow("etf")
-		window.SetWindowTitle("ETF visualization")
+		window.SetWindowTitle("ETF flowfield")
 		window.IMShow(preview)
 		window.WaitKey(0)
 	}
