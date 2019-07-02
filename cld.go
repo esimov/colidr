@@ -35,7 +35,6 @@ type Options struct {
 	FDogIteration int
 	AntiAlias     bool
 	EtfViz        bool
-	FlowField     bool
 }
 
 // position is a basic struct for vector type operations
@@ -90,6 +89,21 @@ func (c *Cld) GenerateCld() []byte {
 			c.generate()
 		}
 	}
+
+	pp := NewPostProcessing(c.BlurSize)
+	if c.AntiAlias {
+		pp.AntiAlias(c.result, c.result)
+	}
+	if c.EtfViz {
+		preview := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
+		pp.VizEtf(&c.etf.flowField, &preview)
+
+		window := gocv.NewWindow("etf")
+		window.SetWindowTitle("ETF visualization")
+		window.IMShow(preview)
+		window.WaitKey(0)
+	}
+
 	return c.result.ToBytes()
 }
 
@@ -101,30 +115,6 @@ func (c *Cld) generate() {
 	c.gradientDoG(&srcImg32FC1, &c.dog, c.Rho, c.SigmaC)
 	c.flowDoG(&c.dog, &c.fDog, c.SigmaM)
 	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
-
-	window := gocv.NewWindow("dog")
-	window.IMShow(c.dog)
-	window.WaitKey(0)
-
-	window = gocv.NewWindow("fdog")
-	window.IMShow(c.fDog)
-	window.WaitKey(0)
-
-	window = gocv.NewWindow("result")
-	window.IMShow(c.result)
-	window.WaitKey(0)
-
-	// TODO check for order
-	pp := NewPostProcessing(c.BlurSize)
-	if c.AntiAlias {
-		pp.AntiAlias(c.result, c.result)
-	}
-	if c.EtfViz {
-		pp.VizEtf(&c.etf.flowField, &c.result)
-	}
-	if c.FlowField {
-		pp.FlowField(&c.etf.flowField, &c.result)
-	}
 }
 
 // gradientDoG computes the gradient difference-of-Gaussians (DoG)
@@ -160,7 +150,7 @@ func (c *Cld) gradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 					}
 					val := src.GetFloatAt(int(math.Round(row)), int(math.Round(col)))
 
-					gauIdx := abs(step)
+					gauIdx := absInt(step)
 					gauCWeight := func(gauIdx int) float64 {
 						if gauIdx >= len(gvc) {
 							return 0.0
@@ -378,8 +368,8 @@ func makeGaussianVector(sigma float64) []float64 {
 	return gau
 }
 
-// abs return the absolute value of x
-func abs(x int) int {
+// absInt return the absolute value of x
+func absInt(x int) int {
 	if x < 0 {
 		return -x
 	}

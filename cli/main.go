@@ -41,7 +41,6 @@ func main() {
 		blurSize      = flag.Int("bl", 3, "Blur size")
 		antiAlias     = flag.Bool("aa", false, "Anti aliasing")
 		etfViz        = flag.Bool("etf", false, "Vizualize Etf")
-		flowField     = flag.Bool("ff", false, "Vizualize flowfield")
 	)
 
 	flag.Usage = func() {
@@ -73,7 +72,6 @@ func main() {
 		BlurSize:      *blurSize,
 		AntiAlias:     *antiAlias,
 		EtfViz:        *etfViz,
-		FlowField:     *flowField,
 	}
 
 	fmt.Print("Generating")

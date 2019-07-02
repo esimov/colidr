@@ -88,16 +88,7 @@ func (etf *Etf) InitDefaultEtf(file string, size image.Point) error {
 	}
 
 	etf.wg.Wait()
-
-	window := gocv.NewWindow("gradient")
-	window.IMShow(etf.gradientField)
-	window.WaitKey(0)
-
 	etf.rotateFlow(&etf.gradientField, &etf.flowField, 90)
-
-	window = gocv.NewWindow("flow")
-	window.IMShow(etf.flowField)
-	window.WaitKey(0)
 
 	return nil
 }
