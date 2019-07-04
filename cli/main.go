@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"image/jpeg"
@@ -82,25 +81,9 @@ func main() {
 		VisResult:     *visResult,
 	}
 
-	fmt.Print("Generating")
+	fmt.Println("Processing:")
 
 	start := time.Now()
-	done := make(chan struct{})
-
-	ticker := time.NewTicker(time.Millisecond * 100)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				fmt.Print(".")
-			case <-done:
-				ticker.Stop()
-				end := time.Now().Sub(start)
-				fmt.Printf("\nDone in: %.2fs\n", end.Seconds())
-			}
-		}
-	}()
-
 	cld, err := colidr.NewCLD(*source, opts)
 	if err != nil {
 		log.Fatalf("cannot initialize CLD: %v", err)
@@ -145,30 +128,26 @@ func main() {
 		}(err)
 
 		if *potrace {
+		loop:
 			for {
 				select {
 				case <-done:
-					dir := filepath.Dir(*destination)
-					file := filepath.Base(output.Name()) + ".pgm"
-					dest := dir + "/" + file
+					dest := filepath.Dir(*destination) + "/" + filepath.Base(strings.TrimSuffix(output.Name(), ".bmp")) + ".pgm"
 					args := []string{"-g", *destination, "-o", dest}
+
 					cmd := exec.Command("potrace", args...)
 
 					if _, err = cmd.Output(); err != nil {
 						fmt.Fprintln(os.Stderr, "potrace error: ", err)
 						os.Exit(1)
 					}
-					fmt.Println("finished")
-					return
+					break loop
 				}
 			}
 		}
-	default:
-		err = errors.New("unsupported image format")
 	}
-	done <- struct{}{}
-
-	time.Sleep(time.Second)
+	end := time.Now().Sub(start)
+	fmt.Printf("\nFinished in: %.2fs\n", end.Seconds())
 }
 
 // supportedFiles checks if the provided file extension is supported.
