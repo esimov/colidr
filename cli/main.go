@@ -1,16 +1,21 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"image/jpeg"
 	"image/png"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/esimov/colidr"
 	"gocv.io/x/gocv"
+	"golang.org/x/image/bmp"
 )
 
 const banner = `
@@ -42,6 +47,7 @@ func main() {
 		antiAlias     = flag.Bool("aa", false, "Anti aliasing")
 		visEtf        = flag.Bool("ve", false, "Visualize Etf")
 		visResult     = flag.Bool("vr", false, "Visualize end result")
+		potrace       = flag.Bool("pt", true, "Use potrace to smooth edges")
 	)
 
 	flag.Usage = func() {
@@ -54,7 +60,7 @@ func main() {
 		log.Fatal("Usage: colidr -in <source> -out <destination>")
 	}
 
-	fileTypes := []string{".jpg", ".jpeg", ".png"}
+	fileTypes := []string{".jpg", ".jpeg", ".png", ".bmp"}
 	ext := filepath.Ext(*destination)
 
 	if !supportedFiles(ext, fileTypes) {
@@ -113,13 +119,53 @@ func main() {
 		log.Fatalf("error converting matrix to image: %v", err)
 	}
 
-	//save the imgByte to file
-	out, err := os.Create(*destination)
+	if *potrace {
+		*destination = strings.Replace(*destination, ext, ".bmp", 1)
+		ext = filepath.Ext(*destination)
+	}
+
+	// save the image byte array to the destination file
+	output, err := os.Create(*destination)
 	if err != nil {
 		log.Fatalf("error saving the image: %v", err)
 	}
 
-	err = png.Encode(out, img)
+	switch ext {
+	case ".jpg", ".jpeg":
+		err = jpeg.Encode(output, img, &jpeg.Options{Quality: 100})
+	case ".png":
+		err = png.Encode(output, img)
+	case ".bmp":
+		done := make(chan bool)
+		go func(err error) {
+			err = bmp.Encode(output, img)
+			if err == nil {
+				done <- true
+			}
+		}(err)
+
+		if *potrace {
+			for {
+				select {
+				case <-done:
+					dir := filepath.Dir(*destination)
+					file := filepath.Base(output.Name()) + ".pgm"
+					dest := dir + "/" + file
+					args := []string{"-g", *destination, "-o", dest}
+					cmd := exec.Command("potrace", args...)
+
+					if _, err = cmd.Output(); err != nil {
+						fmt.Fprintln(os.Stderr, "potrace error: ", err)
+						os.Exit(1)
+					}
+					fmt.Println("finished")
+					return
+				}
+			}
+		}
+	default:
+		err = errors.New("unsupported image format")
+	}
 	done <- struct{}{}
 
 	time.Sleep(time.Second)
