@@ -1,5 +1,4 @@
-# colidr
-Coherent Line Drawing. 
+# colidr (Coherent Line Drawing)
 
 Implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf)' algorithm developed by Kang et al, NPAR 2007 in Go / [gocv](https://github.com/hybridgroup/gocv).
 
