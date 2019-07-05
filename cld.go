@@ -5,6 +5,7 @@ import (
 	"image"
 	"math"
 	"os"
+	"strconv"
 	"sync"
 
 	"gocv.io/x/gocv"
@@ -65,8 +66,8 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	etf := NewETF()
 	etf.Init(rows, cols)
 
-	e := new(event)
-	e.start("Initialize ETF")
+	e := newEvent("Initialize ETF")
+	e.start()
 	err = etf.InitDefaultEtf(imgFile, image.Point{X: rows, Y: cols})
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize edge tangent flow: %s", err)
@@ -74,9 +75,12 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	e.stop()
 
 	if cldOpts.EtfIteration > 0 {
-		e.start("Refine ETF")
+		e = newEvent("Refine ETF ")
+		e.start()
 		for i := 0; i < cldOpts.EtfIteration; i++ {
+			e.append(strconv.Itoa(i+1) + "/" + strconv.Itoa(cldOpts.EtfIteration))
 			etf.RefineEtf(cldOpts.EtfKernel)
+			e.clear()
 		}
 		e.stop()
 	}
@@ -89,14 +93,20 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 // GenerateCld is the entry method for generating the coherent line drawing output.
 // It triggers the generate method in iterative manner and returns the resulting byte array.
 func (c *Cld) GenerateCld() []byte {
-	c.generate()
-
+	e := newEvent("FDoG iteration ")
+	e.start()
 	if c.FDogIteration > 0 {
 		for i := 0; i < c.FDogIteration; i++ {
+			e.append(strconv.Itoa(i+1) + "/" + strconv.Itoa(c.FDogIteration))
+
 			c.combineImage()
 			c.generate()
+			e.clear()
 		}
+	} else {
+		c.generate()
 	}
+	e.stop()
 
 	if c.VisResult {
 		window := gocv.NewWindow("result")
@@ -110,8 +120,8 @@ func (c *Cld) GenerateCld() []byte {
 		pp.AntiAlias(c.result, c.result)
 	}
 	if c.VisEtf {
-		e := new(event)
-		e.start("Visualize ETF")
+		e := newEvent("Visualize ETF")
+		e.start()
 		preview := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
 		pp.VizEtf(&c.etf.flowField, &preview)
 		e.stop()
@@ -130,18 +140,9 @@ func (c *Cld) generate() {
 	srcImg32FC1 := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
 	c.Image.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
 
-	e := new(event)
-	e.start("Gradient DoG")
 	c.gradientDoG(&srcImg32FC1, &c.dog, c.Rho, c.SigmaC)
-	e.stop()
-
-	e.start("Flow DoG")
 	c.flowDoG(&c.dog, &c.fDog, c.SigmaM)
-	e.stop()
-
-	e.start("Binary thresholding")
 	c.binaryThreshold(&c.fDog, &c.result, c.Tau)
-	e.stop()
 }
 
 // gradientDoG computes the gradient difference-of-Gaussians (DoG)

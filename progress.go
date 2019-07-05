@@ -8,16 +8,26 @@ import (
 )
 
 type event struct {
+	msg  string
 	done chan struct{}
 }
 
-func (e *event) start(msg string) {
+var defaultMsg string
+
+// newEvent constructor method for instantiating a new progress event.
+func newEvent(msg string) *event {
+	defaultMsg = msg
+	return &event{msg: msg}
+}
+
+// start dispatch a new progress event
+func (e *event) start() {
 	e.done = make(chan struct{}, 1)
 	start := time.Now()
 	ticker := time.NewTicker(time.Millisecond * 100)
 
 	w := tabwriter.NewWriter(os.Stdout, 10, 0, 0, ' ', tabwriter.DiscardEmptyColumns)
-	fmt.Fprintf(w, "\r\t%s", msg)
+	fmt.Fprintf(w, "\r\t%s", e.msg)
 	w.Flush()
 
 	go func() {
@@ -26,7 +36,7 @@ func (e *event) start(msg string) {
 				select {
 				case <-ticker.C:
 					w := tabwriter.NewWriter(os.Stdout, 10, 0, 0, ' ', tabwriter.DiscardEmptyColumns)
-					fmt.Fprintf(w, "\r\t%s%s %c\t%s", msg, "\x1b[92m", r, "\x1b[39m")
+					fmt.Fprintf(w, "\r\t%s%s %c\t%s", e.msg, "\x1b[92m", r, "\x1b[39m")
 					w.Flush()
 				case <-e.done:
 					ticker.Stop()
@@ -40,6 +50,17 @@ func (e *event) start(msg string) {
 	}()
 }
 
+// append appends a string to the existing one
+func (e *event) append(msg interface{}) {
+	e.msg += msg.(string)
+}
+
+// clear clears out the default message
+func (e *event) clear() {
+	e.msg = defaultMsg
+}
+
+// stop signals the process end
 func (e *event) stop() {
 	e.done <- struct{}{}
 	time.Sleep(time.Millisecond)
