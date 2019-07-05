@@ -95,6 +95,8 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 func (c *Cld) GenerateCld() []byte {
 	e := newEvent("FDoG iteration ")
 	e.start()
+	c.generate()
+
 	if c.FDogIteration > 0 {
 		for i := 0; i < c.FDogIteration; i++ {
 			e.append(strconv.Itoa(i+1) + "/" + strconv.Itoa(c.FDogIteration))
@@ -103,8 +105,6 @@ func (c *Cld) GenerateCld() []byte {
 			c.generate()
 			e.clear()
 		}
-	} else {
-		c.generate()
 	}
 	e.stop()
 
