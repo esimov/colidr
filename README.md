@@ -1,11 +1,11 @@
 # colidr (Coherent Line Drawing)
 
-Implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf)' algorithm developed by Kang et al, NPAR 2007 in Go / [gocv](https://github.com/hybridgroup/gocv).
+Implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf)' algorithm developed by Kang et al, NPAR 2007 in Go.
 
 ## Requirements
 - Go 1.10 or higher, but it should work even with a lower version
 - OpenCV 3
-- gocv (bundled into the project, since it was extended with missing OpenCV functions needed for the implementation)
+- [gocv](https://github.com/hybridgroup/gocv) (bundled into the project, since it was extended with missing OpenCV functions needed for the implementation)
 
 ## Installation
 ```bash
