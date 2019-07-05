@@ -1,6 +1,6 @@
 # colidr (Coherent Line Drawing)
 
-Implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf)' algorithm developed by Kang et al, NPAR 2007 in Go.
+Implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf)' algorithm developed by Kang et al, NPAR 2007.
 
 ![sample](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg)
 
