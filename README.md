@@ -95,4 +95,4 @@ colidr -in ~/Desktop/patio.jpg -out ~/Desktop/patio_scene.png -k=1 -sr=2.5 -sm=3
 ## License
 Copyright © 2019 Endre Simo
 
-This project is under the MIT License. See the [LICENSE](https://github.com/esimov/triangle/blob/master/LICENSE) file for the full license text.
+This project is under the MIT License. See the [LICENSE](https://github.com/esimov/colidr/blob/master/LICENSE) file for the full license text.
