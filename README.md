@@ -2,11 +2,13 @@
 
 Implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf)' algorithm developed by Kang et al, NPAR 2007 in Go.
 
+![sample](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg)
+
 ## Requirements
 - Go 1.10 or higher, but it should work even with a lower version
 - OpenCV 3
 - [gocv](https://github.com/hybridgroup/gocv) (bundled into the project, since it was extended with missing OpenCV functions needed for the implementation)
-- [potrace](http://potrace.sourceforge.net/) - for transforming the bitmap into smooth, scalable image (optional)
+- [potrace](http://potrace.sourceforge.net/) - for transforming the bitmap into smooth, scalable image (however this is optional)
 
 ## Installation
 ```bash
@@ -80,9 +82,11 @@ Below is an example whith and without the potrace flag activated.
 |:--:|:--:|
 | ![normal](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg) | ![smooth](https://user-images.githubusercontent.com/883386/60726046-40c83a80-9f43-11e9-81b8-d98bfea90991.jpg) |
 
-Here are some sample commands you can try out.
+The above image was ganareted with the following command:
 
-
+```bash
+colidr -in ~/Desktop/patio.jpg -out ~/Desktop/patio_scene.png -k=1 -sr=2.5 -sm=3.2 -tau=0.9975 -di=1 -aa=1 -ve=1 -vr=0 -pt=1 -ei=1
+```
 
 ## Author
 
