@@ -6,6 +6,7 @@ Implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/F
 - Go 1.10 or higher, but it should work even with a lower version
 - OpenCV 3
 - [gocv](https://github.com/hybridgroup/gocv) (bundled into the project, since it was extended with missing OpenCV functions needed for the implementation)
+- [potrace](http://potrace.sourceforge.net/) - for transforming the bitmap into smooth, scalable image (optional)
 
 ## Installation
 ```bash
@@ -63,6 +64,25 @@ Coherent Line Drawing CLI
     	Visualize end result
 
 ```
+You can play with the command line arguments to modify the visual output of the generated (non-photorealistically rendered) image. To obtain higher fidelity results you need to increase the `kernel` value and also the ETF iteration number. Different combinations produces completely different output. The `-di`, `-ei`, `-k` flags are mostly used for fine tuning, on the other hand `-rho` and `-tau` flags could change dramatically the rendered output.
+
+You can also visualize the edge tangent flow if you enable the `-ve` flag. Below is the process illustrated:
+
+| Original image | Edge tangent flow | Coherent line drawing (final output)
+|:--:|:--:|:--:|
+| ![original](https://user-images.githubusercontent.com/883386/60724812-0f9a3b00-9f40-11e9-86c2-906bc652b3f6.jpg) | ![flowfield](https://user-images.githubusercontent.com/883386/60726316-ea0f3080-9f43-11e9-9b6c-c9bac05b32f0.png) | ![output](https://user-images.githubusercontent.com/883386/60725818-b1228c00-9f42-11e9-9019-6280d31aa09f.png) | 
+
+Using the `-pt` flag you can trace the generated bitmap into a smooth scalabe image. You need to have [potrace](http://potrace.sourceforge.net/) installed on your machine for this scope.
+
+Below is an example whith and without the potrace flag activated.
+
+| Normal output | Potrace applied
+|:--:|:--:|
+| ![normal](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg) | ![smooth](https://user-images.githubusercontent.com/883386/60726046-40c83a80-9f43-11e9-81b8-d98bfea90991.jpg) |
+
+Here are some sample commands you can try out.
+
+
 
 ## Author
 
