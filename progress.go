@@ -2,6 +2,8 @@ package colidr
 
 import (
 	"fmt"
+	"os"
+	"text/tabwriter"
 	"time"
 )
 
@@ -14,16 +16,25 @@ func (e *event) start(msg string) {
 	start := time.Now()
 	ticker := time.NewTicker(time.Millisecond * 100)
 
-	fmt.Printf("\t%s", msg)
+	w := tabwriter.NewWriter(os.Stdout, 10, 0, 0, ' ', tabwriter.DiscardEmptyColumns)
+	fmt.Fprintf(w, "\r\t%s", msg)
+	w.Flush()
+
 	go func() {
 		for {
-			select {
-			case <-ticker.C:
-				fmt.Print(".")
-			case <-e.done:
-				ticker.Stop()
-				end := time.Now().Sub(start)
-				fmt.Printf("\nDone in: %.2fs\n", end.Seconds())
+			for _, r := range `-\|/` {
+				select {
+				case <-ticker.C:
+					w := tabwriter.NewWriter(os.Stdout, 10, 0, 0, ' ', tabwriter.DiscardEmptyColumns)
+					fmt.Fprintf(w, "\r\t%s%s %c\t%s", msg, "\x1b[92m", r, "\x1b[39m")
+					w.Flush()
+				case <-e.done:
+					ticker.Stop()
+					w := tabwriter.NewWriter(os.Stdout, 20, 15, 10, '.', tabwriter.AlignRight|tabwriter.DiscardEmptyColumns)
+					end := time.Now().Sub(start)
+					fmt.Fprintf(w, "\t%.2fs\t\n", end.Seconds())
+					w.Flush()
+				}
 			}
 		}
 	}()
