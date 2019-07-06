@@ -1,6 +1,9 @@
 # colidr (Coherent Line Drawing)
 
-Implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf)' algorithm developed by Kang et al, NPAR 2007.
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat)](./LICENSE)
+[![release](https://img.shields.io/badge/release-v1.0.1-blue.svg)](https://github.com/esimov/colidr/releases/tag/v1.0.1)
+
+Golang implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf)' algorithm developed by Kang et al, NPAR 2007.
 
 ![sample](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg)
 
@@ -82,11 +85,14 @@ Below is an example whith and without the potrace flag activated.
 |:--:|:--:|
 | ![normal](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg) | ![smooth](https://user-images.githubusercontent.com/883386/60726046-40c83a80-9f43-11e9-81b8-d98bfea90991.jpg) |
 
-The above image was ganareted with the following command:
+The above [image](http://hof.povray.org/images/patio.jpg) was ganareted with the following command:
 
 ```bash
 colidr -in ~/Desktop/patio.jpg -out ~/Desktop/patio_scene.png -k=1 -sr=2.5 -sm=3.2 -tau=0.9975 -di=1 -aa=1 -ve=1 -vr=0 -pt=1 -ei=1
 ```
+
+## Todo
+- [ ] GUI support
 
 ## Author
 
