@@ -55,20 +55,20 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	}
 
 	srcImage := gocv.IMRead(imgFile, gocv.IMReadGrayScale)
-	rows, cols := srcImage.Cols(), srcImage.Rows()
+	rows, cols := srcImage.Rows(), srcImage.Cols()
 
-	result := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV8UC1)
-	dog := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV32F)
-	fDog := gocv.NewMatWithSize(cols, rows, gocv.MatTypeCV32F)
+	result := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV8UC1)
+	dog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
+	fDog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
 
 	var wg sync.WaitGroup
 
 	etf := NewETF()
-	etf.Init(rows, cols)
+	etf.Init(cols, rows)
 
 	e := newEvent("Initialize ETF")
 	e.start()
-	err = etf.InitDefaultEtf(imgFile, image.Point{X: rows, Y: cols})
+	err = etf.InitDefaultEtf(imgFile, image.Point{X: cols, Y: rows})
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize edge tangent flow: %s", err)
 	}
