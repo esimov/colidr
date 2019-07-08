@@ -81,7 +81,7 @@ Using the `-pt` flag you can trace the generated bitmap into a smooth scalabe im
 
 Below is an example whith and without the potrace flag activated.
 
-| Normal output | Potrace applied
+| Normal output | Smoothed out
 |:--:|:--:|
 | ![normal](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg) | ![smooth](https://user-images.githubusercontent.com/883386/60726046-40c83a80-9f43-11e9-81b8-d98bfea90991.jpg) |
 
@@ -90,6 +90,14 @@ The above [image](http://hof.povray.org/images/patio.jpg) was ganareted with the
 ```bash
 colidr -in ~/Desktop/patio.jpg -out ~/Desktop/patio_scene.png -k=1 -sr=2.5 -sm=3.2 -tau=0.9975 -di=1 -aa=1 -ve=1 -vr=0 -pt=1 -ei=1
 ```
+
+## Sample images
+| Rasterized bitmap | Vectorized image
+|:--:|:--:|
+| ![great_wave_of_kanagawa](https://user-images.githubusercontent.com/883386/60795446-5cfeee00-a174-11e9-8f55-08a3695eca56.png) | ![great_wave_of_kanagawa](https://user-images.githubusercontent.com/883386/60795445-5cfeee00-a174-11e9-9c7a-492fb72b3f69.png) |
+| ![starry_night](https://user-images.githubusercontent.com/883386/60795440-5c665780-a174-11e9-9804-d5e56d0c49e7.png) | ![starry_night](https://user-images.githubusercontent.com/883386/60795439-5c665780-a174-11e9-9d01-2c05373b465e.png) |
+| ![people](https://user-images.githubusercontent.com/883386/60795438-5c665780-a174-11e9-8c8a-365bd8eda329.png) | ![people](https://user-images.githubusercontent.com/883386/60795436-5bcdc100-a174-11e9-8fe2-00e6a0f13f06.png) |
+| ![tiger](https://user-images.githubusercontent.com/883386/60795443-5cfeee00-a174-11e9-9fd4-6ceb9a02ca21.png) | ![tiger](https://user-images.githubusercontent.com/883386/60795442-5c665780-a174-11e9-922b-fd5517622157.png) |
 
 ## Todo
 - [ ] GUI support
