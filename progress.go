@@ -36,7 +36,7 @@ func (e *event) start() {
 				select {
 				case <-ticker.C:
 					w := tabwriter.NewWriter(os.Stdout, 10, 0, 0, ' ', tabwriter.DiscardEmptyColumns)
-					fmt.Fprintf(w, "\r\t%s%s %c\t%s", e.msg, "\x1b[35m", r, "\x1b[39m")
+					fmt.Fprintf(w, "\r\t%s%s %c \t%s", e.msg, "\x1b[35m", r, "\x1b[39m")
 					w.Flush()
 				case <-e.done:
 					ticker.Stop()
