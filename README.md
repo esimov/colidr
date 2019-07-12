@@ -69,7 +69,7 @@ Coherent Line Drawing CLI
     	Visualize end result
 
 ```
-You can play with the command line arguments to modify the visual output of the generated (non-photorealistically rendered) image. To obtain higher fidelity results you need to increase the `kernel` value and also the ETF iteration number. Different combinations produces completely different output. The `-di`, `-ei`, `-k` flags are mostly used for fine tuning, on the other hand `-rho` and `-tau` flags could change dramatically the rendered output.
+Feel free to play with the values in order to modify the visual output of the generated (non-photorealistically rendered) image. To obtain higher fidelity results you need to increase the `kernel` value and also the ETF iteration number. Different combinations produces completely different output. The `-di`, `-ei`, `-k` flags are mostly used for fine tuning, on the other hand `-rho` and `-tau` flags could change dramatically the rendered output.
 
 You can also visualize the edge tangent flow if you enable the `-ve` flag. Below is the process illustrated:
 
@@ -81,7 +81,7 @@ Using the `-pt` flag you can trace the generated bitmap into a smooth scalabe im
 
 Below is an example whith and without the potrace flag activated.
 
-| Normal output | Smoothed out
+| Normal output | Potrace activated
 |:--:|:--:|
 | ![normal](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg) | ![smooth](https://user-images.githubusercontent.com/883386/60726046-40c83a80-9f43-11e9-81b8-d98bfea90991.jpg) |
 
