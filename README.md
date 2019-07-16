@@ -9,7 +9,7 @@ Golang implementation of '[Coherent Line Drawing](http://umsl.edu/mathcs/about/P
 
 ## Requirements
 - Go 1.10 or higher, but it should work even with a lower version
-- OpenCV 3
+- OpenCV 3 (tested with 3.4.2)
 - [gocv](https://github.com/hybridgroup/gocv) (bundled into the project, since it was extended with missing OpenCV functions needed for the implementation)
 - [potrace](http://potrace.sourceforge.net/) - for transforming the bitmap into smooth, scalable image (however this is optional)
 
