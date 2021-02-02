@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Build
+    strategy:
+      matrix:
+        go-version: [~1.14, ~1.13, ~1.12, ~1.11]
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GO111MODULE: "on"
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Install dependencies
+          run: |
+            if: matrix.os == 'ubuntu-latest'
+              apt-get install potrace
+            if: matrix.os == 'macos-latest'
+              brew install potrace
+
+      - name: Build
+        run: go build -o /dev/null -v ./cli/main.go
