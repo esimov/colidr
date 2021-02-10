@@ -18,6 +18,7 @@ fi
 go build -mod=vendor -ldflags "-X main.Version=$VERSION" -o "$OD/colidr" cli/main.go
 
 echo "GOPATH:" $GOPATH
+go env
 
 if [ -d $GOPATH ] ; then
     cp colidr $GOPATH/colidr
