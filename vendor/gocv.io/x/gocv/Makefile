@@ -75,7 +75,7 @@ clean:
 	rm -rf $(TMP_DIR)opencv
 
 # Do everything.
-install: deps download build sudo_install clean verify
+install: deps download build sudo_install clean
 
 # Do everything on Raspbian.
 install_raspi: deps download build_raspi sudo_install clean verify

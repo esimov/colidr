@@ -10,6 +10,7 @@ jobs:
   build:
     name: Build
     strategy:
+      fail-fast: false
       matrix:
         go-version: [~1.14, ~1.13, ~1.12, ~1.11]
         os: [ubuntu-latest, macos-latest]
@@ -25,15 +26,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Download Go modules
-        run: go mod download
+      - name: Install Ubuntu dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt-get install potrace
+            cd ./vendor/gocv.io/x/gocv && make install
 
-      - name: Install dependencies
-          run: |
-            if: matrix.os == 'ubuntu-latest'
-              apt-get install potrace
-            if: matrix.os == 'macos-latest'
-              brew install potrace
+      - name: Install MacOS dependencies
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install potrace
+          brew install opencv@3
 
-      - name: Build
-        run: go build -o /dev/null -v ./cli/main.go
+      - name: Build Project
+        run: |
+          sudo ./build.sh -c -d
