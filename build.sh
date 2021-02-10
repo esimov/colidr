@@ -17,7 +17,8 @@ fi
 # build and store objects into original directory.
 go build -mod=vendor -ldflags "-X main.Version=$VERSION" -o "$OD/colidr" cli/main.go
 
-echo $GOPATH
+echo "GOPATH:" $GOPATH
+
 if [ -d $GOPATH ] ; then
     cp colidr $GOPATH/colidr
 fi
