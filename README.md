@@ -1,6 +1,6 @@
 # colidr - Coherent Line Drawing
 
-[![CI](https://github.com/esimov/colidr/workflows/CI/badge.svg)](https://github.com/esimov/colidr/actions)
+[![build](https://github.com/esimov/colidr/workflows/build/badge.svg)](https://github.com/esimov/colidr/actions)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat)](./LICENSE)
 [![release](https://img.shields.io/badge/release-v1.0.1-blue.svg)](https://github.com/esimov/colidr/releases/tag/v1.0.1)
 
