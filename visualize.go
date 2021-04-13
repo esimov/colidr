@@ -7,13 +7,13 @@ import (
 	"gocv.io/x/gocv"
 )
 
-// PostProcessing is a basic struct used for post processing operations
+// PostProcessing is a basic struct used for the post processing operations
 type PostProcessing struct {
 	Etf
 	blurSize int
 }
 
-// NewPostProcessing is a constructor method which initialize a PostProcessing struct.
+// NewPostProcessing is a constructor method which initialize the PostProcessing struct.
 func NewPostProcessing(blurSize int) *PostProcessing {
 	return &PostProcessing{
 		blurSize: blurSize,
@@ -35,7 +35,6 @@ func (pp *PostProcessing) VizEtf(flowField, dst *gocv.Mat) {
 	cols := noise.Cols()
 
 	pp.wg.Add(rows * cols)
-
 	for i := 0; i < rows; i++ {
 		for j := 0; j < cols; j++ {
 			go func(i, j int) {
@@ -98,7 +97,6 @@ func (pp *PostProcessing) VizEtf(flowField, dst *gocv.Mat) {
 			}(i, j)
 		}
 	}
-
 	pp.wg.Wait()
 }
 
@@ -106,11 +104,4 @@ func (pp *PostProcessing) VizEtf(flowField, dst *gocv.Mat) {
 func (pp *PostProcessing) AntiAlias(src, dst gocv.Mat) {
 	gocv.Normalize(src, &dst, 0.0, 255.0, gocv.NormMinMax)
 	gocv.GaussianBlur(dst, &dst, image.Point{pp.blurSize, pp.blurSize}, 0.0, 0.0, gocv.BorderConstant)
-}
-
-func abs(val float32) float32 {
-	if val < 0.0 {
-		return -val
-	}
-	return val
 }

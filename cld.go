@@ -18,7 +18,6 @@ type Cld struct {
 	dog    gocv.Mat
 	fDog   gocv.Mat
 	etf    *Etf
-	wg     sync.WaitGroup
 	Options
 }
 
@@ -44,8 +43,10 @@ type position struct {
 	x, y float64
 }
 
-// NewCLD is the constructor method which require the source image and the CLD options as parameters.
-func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
+var wg sync.WaitGroup
+
+// NewCLD is a constructor method having the source image and the Cld options as parameters.
+func NewCLD(imgFile string, opts Options) (*Cld, error) {
 	f, err := os.Stat(imgFile)
 	if os.IsNotExist(err) {
 		return nil, err
@@ -61,8 +62,6 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	dog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
 	fDog := gocv.NewMatWithSize(rows, cols, gocv.MatTypeCV32F)
 
-	var wg sync.WaitGroup
-
 	etf := NewETF()
 	etf.Init(cols, rows)
 
@@ -74,20 +73,18 @@ func NewCLD(imgFile string, cldOpts Options) (*Cld, error) {
 	}
 	e.stop()
 
-	if cldOpts.EtfIteration > 0 {
+	if opts.EtfIteration > 0 {
 		e = newEvent("Refine ETF ")
 		e.start()
-		for i := 0; i < cldOpts.EtfIteration; i++ {
-			e.append(strconv.Itoa(i+1) + "/" + strconv.Itoa(cldOpts.EtfIteration))
-			etf.RefineEtf(cldOpts.EtfKernel)
+		for i := 0; i < opts.EtfIteration; i++ {
+			e.append(strconv.Itoa(i+1) + "/" + strconv.Itoa(opts.EtfIteration))
+			etf.RefineEtf(opts.EtfKernel)
 			e.clear()
 		}
 		e.stop()
 	}
 
-	return &Cld{
-		srcImage, result, dog, fDog, etf, wg, cldOpts,
-	}, nil
+	return &Cld{srcImage, result, dog, fDog, etf, opts}, nil
 }
 
 // GenerateCld is the entry method for generating the coherent line drawing output.
@@ -135,7 +132,7 @@ func (c *Cld) GenerateCld() []byte {
 	return c.result.ToBytes()
 }
 
-// generate is a helper method which enclose all the requested operation for the CLD computation.
+// generate is a helper method which encapsulates all of the requested operations required by the CLD computation.
 func (c *Cld) generate() {
 	srcImg32FC1 := gocv.NewMatWithSize(c.Image.Rows(), c.Image.Cols(), gocv.MatTypeCV32F)
 	c.Image.ConvertTo(&srcImg32FC1, gocv.MatTypeCV32F, 1.0/255.0)
@@ -153,11 +150,12 @@ func (c *Cld) gradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 	kernel := len(gvs) - 1
 
 	width, height := dst.Cols(), dst.Rows()
-	c.wg.Add(width * height)
 
+	wg.Add(width * height)
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			go func(y, x int) {
+				defer wg.Done()
 				var (
 					gauCAcc, gauSAcc             float64
 					gauCWeightAcc, gauSWeightAcc float64
@@ -198,12 +196,10 @@ func (c *Cld) gradientDoG(src, dst *gocv.Mat, rho, sigmaC float64) {
 
 				res := vc - rho*vs
 				dst.SetFloatAt(y, x, float32(res))
-
-				c.wg.Done()
 			}(y, x)
 		}
 	}
-	c.wg.Wait()
+	wg.Wait()
 }
 
 // flowDoG computes the flow difference-of-Gaussians (DoG)
@@ -217,11 +213,11 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigmaM float64) {
 	width, height := src.Cols(), src.Rows()
 	kernelHalf := len(gausVec) - 1
 
-	c.wg.Add(width * height)
-
+	wg.Add(width * height)
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			go func(y, x int) {
+				defer wg.Done()
 				c.etf.mu.Lock()
 				defer c.etf.mu.Unlock()
 
@@ -249,7 +245,7 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigmaM float64) {
 					gauAcc += float64(value) * weight
 					gauWeightAcc += weight
 
-					// move along ETF direction
+					// move along the ETF direction
 					pos.x += direction.x
 					pos.y += direction.y
 
@@ -280,7 +276,7 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigmaM float64) {
 					gauAcc += float64(value) * weight
 					gauWeightAcc += weight
 
-					// move along ETF direction
+					// move along the ETF direction
 					pos.x += direction.x
 					pos.y += direction.y
 
@@ -303,24 +299,22 @@ func (c *Cld) flowDoG(src, dst *gocv.Mat, sigmaM float64) {
 
 				// Update pixel value in the destination matrix.
 				dst.SetFloatAt(y, x, float32(newVal(gauAcc, gauWeightAcc)))
-
-				c.wg.Done()
 			}(y, x)
 		}
 	}
 	gocv.Normalize(*dst, dst, 0.0, 1.0, gocv.NormMinMax)
-
-	c.wg.Wait()
+	wg.Wait()
 }
 
-// binaryThreshold threshold an image as black and white.
+// binaryThreshold applies a black and white threshold dithering.
 func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 	width, height := dst.Cols(), dst.Rows()
-	c.wg.Add(width * height)
+	wg.Add(width * height)
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			go func(y, x int) {
+				defer wg.Done()
 				c.etf.mu.Lock()
 				defer c.etf.mu.Unlock()
 
@@ -332,21 +326,21 @@ func (c *Cld) binaryThreshold(src, dst *gocv.Mat, tau float32) []byte {
 					return 255
 				}(h)
 				dst.SetUCharAt(y, x, v)
-
-				c.wg.Done()
 			}(y, x)
 		}
 	}
-	c.wg.Wait()
-
+	wg.Wait()
 	return dst.ToBytes()
 }
 
+// combineImage combines multiple images and applies a gaussian blur for smooth edges
 func (c *Cld) combineImage() {
+	width, height := c.Image.Cols(), c.Image.Rows()
+	wg.Add(width * height)
 	for y := 0; y < c.Image.Rows(); y++ {
 		for x := 0; x < c.Image.Cols(); x++ {
-			c.wg.Add(1)
 			go func(y, x int) {
+				defer wg.Done()
 				c.etf.mu.Lock()
 				defer c.etf.mu.Unlock()
 
@@ -354,52 +348,11 @@ func (c *Cld) combineImage() {
 				if h == 0 {
 					c.Image.SetUCharAt(y, x, 0)
 				}
-				c.wg.Done()
 			}(y, x)
 		}
 	}
 
-	// Apply a gaussian blur to let it more smooth
+	// Apply a gaussian blur for more smoothness
 	gocv.GaussianBlur(c.Image, &c.Image, image.Point{c.BlurSize, c.BlurSize}, 0.0, 0.0, gocv.BorderConstant)
-	c.wg.Wait()
-}
-
-// gauss computes gaussian function of variance
-func gauss(x, mean, sigma float64) float64 {
-	return math.Exp((-(x-mean)*(x-mean))/(2*sigma*sigma)) / math.Sqrt(math.Pi*2.0*sigma*sigma)
-}
-
-// makeGaussianVector constructs a gaussian vector field of floats
-func makeGaussianVector(sigma float64) []float64 {
-	var (
-		gau       []float64
-		threshold = 0.001
-		i         int
-	)
-
-	for {
-		i++
-		if gauss(float64(i), 0.0, sigma) < threshold {
-			break
-		}
-	}
-	// clear slice
-	gau = gau[:0]
-	// extend slice
-	gau = append(gau, make([]float64, i+1)...)
-	gau[0] = gauss(0.0, 0.0, sigma)
-
-	for j := 1; j < len(gau); j++ {
-		gau[j] = gauss(float64(j), 0.0, sigma)
-	}
-
-	return gau
-}
-
-// absInt return the absolute value of x
-func absInt(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
+	wg.Wait()
 }
