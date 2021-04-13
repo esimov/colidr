@@ -1,9 +1,10 @@
 # colidr - Coherent Line Drawing
 
+[![build](https://github.com/esimov/colidr/workflows/build/badge.svg)](https://github.com/esimov/colidr/actions)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat)](./LICENSE)
 [![release](https://img.shields.io/badge/release-v1.0.1-blue.svg)](https://github.com/esimov/colidr/releases/tag/v1.0.1)
 
-Golang implementation of [Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf) algorithm developed by Kang et al, NPAR 2007.
+Implementation in Go of the [Coherent Line Drawing](http://umsl.edu/mathcs/about/People/Faculty/HenryKang/coon.pdf) algorithm developed by Kang et al, NPAR 2007.
 
 ![sample](https://user-images.githubusercontent.com/883386/60726045-40c83a80-9f43-11e9-9d53-7f190889e4bc.jpg)
 
